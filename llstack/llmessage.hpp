@@ -6,6 +6,8 @@
 #ifndef LLPARSER_H_
 #define LLPARSER_H_
 
+#include <QtEndian>
+
 namespace Scaffold
 {
     namespace LLStack
@@ -48,7 +50,7 @@ namespace Scaffold
 
         struct PacketInfo
         {
-            enum { ERROR, LOW, MEDIUM, HIGH };
+            enum { ERROR, LOW, MEDIUM, HIGH, FIXED };
 
             typedef std::vector <PacketInfo> List;
 
@@ -101,8 +103,17 @@ namespace Scaffold
                     }
                 }
 
-                template <typename T> void next () { pos_ += sizeof (T); }
-                template <typename T> void prev () { pos_ -= sizeof (T); }
+                template <typename T> 
+                void next () 
+                { 
+                    pos_ += sizeof (T); 
+                }
+
+                template <typename T> 
+                void prev () 
+                { 
+                    pos_ -= sizeof (T); 
+                }
                 
                 template <typename T>
                 void put (T value)
@@ -129,21 +140,93 @@ namespace Scaffold
                 void pop (T& value)
                 {
                     get (value);
-                    prev <T> ();
+                    next <T> ();
                 }
 
                 void push_header (uint8_t flags, uint32_t seq, uint8_t extra = 0)
                 {
                     push (flags);
-                    push (seq);
+
+                    qToBigEndian (seq, pos_); 
+                    next <uint32_t> ();
+
                     push (extra);
                 }
 
                 void pop_header (uint8_t &flags, uint32_t &seq, uint8_t &extra)
                 {
                     pop (flags);
-                    pop (seq);
+
+                    seq = qFromBigEndian (pos_); 
+                    next <uint32_t> ();
+
                     pop (extra);
+                }
+
+                void push_message_id (int priority, uint32_t id)
+                {
+                    switch (priority)
+                    {
+                        case PacketInfo::LOW: 
+                            push (qToBigEndian ((uint8_t) id));
+                            break;
+
+                        case PacketInfo::MEDIUM: 
+                            push (qToBigEndian ((uint16_t) id | 0x0000FF00));
+                            break;
+
+                        case PacketInfo::HIGH: 
+                            push (qToBigEndian ((uint32_t) id | 0xFFFF0000));
+                            break;
+
+                        case PacketInfo::FIXED: 
+                            push (qToBigEndian ((uint32_t) id));
+                            break;
+                    }
+                }
+
+                void pop_message_id (int &priority, uint32_t &id)
+                {
+                    uint8_t id1; 
+                    uint16_t id2; 
+                    uint32_t id4;
+
+                    get (id1);
+
+                    if (id1 & 0xFF)
+                    {
+                        get (id2);
+
+                        if (id2 & 0xFFFF)
+                        {
+                            get (id4);
+
+                            if (id4 & 0xFFFFFF00)
+                            {
+                                priority = PacketInfo::FIXED;
+                                id = qFromBigEndian (id4 & 0xFFFFFFFF);
+                                next <uint32_t> ();
+                            }
+                            else
+                            {
+                                priority = PacketInfo::HIGH;
+                                id = qFromBigEndian (id4 & 0x0000FFFF);
+                                next <uint32_t> ();
+                            }
+                        }
+                        else
+                        {
+                            priority = PacketInfo::MEDIUM;
+                            id = qFromBigEndian (id2 & 0x000000FF);
+                            next <uint16_t> ();
+                        }
+                    }
+                    else
+                    {
+                        priority = PacketInfo::HIGH;
+                        id = qFromBigEndian (id1 & 0x000000FF);
+                        next <uint8_t> ();
+                    }
                 }
 
                 void push_block (uint8_t repetitions)

@@ -100,6 +100,7 @@ namespace Scaffold
                 if (s == "Low") packet().priority = PacketInfo::LOW;
                 else if (s == "Medium") packet().priority = PacketInfo::MEDIUM;
                 else if (s == "High") packet().priority = PacketInfo::HIGH;
+                else if (s == "Fixed") packet().priority = PacketInfo::FIXED;
                 else packet().priority = PacketInfo::ERROR;
             }
 
