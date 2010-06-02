@@ -6,6 +6,7 @@
 #ifndef STD_HEADERS_H_
 #define STD_HEADERS_H_
 
+#include <ios>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -18,16 +19,19 @@
 #include <iterator>
 
 #include <tr1/cstdint>
+#include <tr1/memory>
 #include <tr1/functional>
 #include <tr1/type_traits>
     
 #include <QMutex>
 
+using std::ios_base;
 using std::string;
 using std::stringstream;
-using std::auto_ptr;
-using std::make_pair;
 using std::for_each;
+using std::make_pair;
+using std::auto_ptr;
+using std::tr1::shared_ptr;
 using std::tr1::function;
 using std::tr1::bind;
 using std::tr1::mem_fn;

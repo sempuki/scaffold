@@ -159,10 +159,7 @@ struct MyComponent : public Component
 int main (int argc, char** argv)
 {
     LLStack::MessageFactory mf; 
-    LLStack::Message *m = mf.create ("UseCircuitCode");
-    cout << "test: " << m->info().offset ("CircuitCode.Code") << endl;
-    cout << "test: " << m->info().offset ("CircuitCode.SessionID") << endl;
-    cout << "test: " << m->info().offset ("CircuitCode.ID") << endl;
+    LLStack::Message *m = mf.create ("UseCircuitCode", 50);
 
     return 0;
 

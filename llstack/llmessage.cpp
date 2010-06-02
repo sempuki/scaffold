@@ -305,13 +305,13 @@ namespace Scaffold
             if (file_) file_.unsetf (std::ios::skipws);
         }
 
-        bool MessageParser::parse (MessageInfo::Map &info)
+        bool MessageParser::parse (PacketInfo &info)
         {
             if (!run_ && file_) return parse_ (info);
             else return false;
         }
 
-        bool MessageParser::parse_ (MessageInfo::Map &info)
+        bool MessageParser::parse_ (PacketInfo &info)
         {
             run_ = true;
 
@@ -327,47 +327,47 @@ namespace Scaffold
             if (!result || (begin != end))
                 return false;
 
-            PacketInfo::List::iterator i = parser.result.begin();
-            PacketInfo::List::iterator e = parser.result.end();
-            for (; i != e; ++i)
-            {
-                //cout << "name: " << i->name << endl;
+            //PacketInfo::List::iterator i = parser.result.begin();
+            //PacketInfo::List::iterator e = parser.result.end();
+            //for (; i != e; ++i)
+            //{
+            //    //cout << "name: " << i->name << endl;
 
-                size_t offset = 0;
-                MessageInfo::OffsetMap map;
+            //    size_t offset = 0;
+            //    MessageInfo::OffsetMap map;
 
-                BlockInfo::List::iterator bi = i->blocks.begin();
-                BlockInfo::List::iterator be = i->blocks.end();
-                for (; bi != be; ++bi)
-                {
-                    //cout << "\tblock name: " << bi->name << endl;
+            //    BlockInfo::List::iterator bi = i->blocks.begin();
+            //    BlockInfo::List::iterator be = i->blocks.end();
+            //    for (; bi != be; ++bi)
+            //    {
+            //        //cout << "\tblock name: " << bi->name << endl;
 
-                    if (bi->repetition != BlockInfo::SINGLE)
-                        offset += 1; // uint8 repetition var
+            //        if (bi->repetition != BlockInfo::SINGLE)
+            //            offset += 1; // uint8 repetition var
 
-                    for (int i=0; i < bi->multiplicy; ++i)
-                    {
-                        VariableInfo::List::iterator vi = bi->variables.begin();
-                        VariableInfo::List::iterator ve = bi->variables.end();
-                        for (; vi != ve; ++vi)
-                        {
-                            //cout << "\t\tvariable name: " << vi->name << endl;
-                            //cout << "\t\tvariable type: " << vi->type << endl;
-                            //cout << "\t\tvariable size: " << vi->size << endl;
+            //        for (int i=0; i < bi->multiplicy; ++i)
+            //        {
+            //            VariableInfo::List::iterator vi = bi->variables.begin();
+            //            VariableInfo::List::iterator ve = bi->variables.end();
+            //            for (; vi != ve; ++vi)
+            //            {
+            //                //cout << "\t\tvariable name: " << vi->name << endl;
+            //                //cout << "\t\tvariable type: " << vi->type << endl;
+            //                //cout << "\t\tvariable size: " << vi->size << endl;
 
-                            string name; 
-                            name += bi->name; 
-                            name += SEPERATOR; 
-                            name += vi->name;
+            //                string name; 
+            //                name += bi->name; 
+            //                name += SEPERATOR; 
+            //                name += vi->name;
 
-                            map.insert (make_pair (name, offset));
-                            offset += vi->size;
-                        }
-                    }
-                }
+            //                map.insert (make_pair (name, offset));
+            //                offset += vi->size;
+            //            }
+            //        }
+            //    }
 
-                info.insert (make_pair (i->name, MessageInfo (i->name, map)));
-            }
+            //    info.insert (make_pair (i->name, MessageInfo (i->name, map)));
+            //}
 
             return true;
         }
