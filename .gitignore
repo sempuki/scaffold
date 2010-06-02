@@ -33,6 +33,8 @@ CMakeOptionalModules.txt
 ZERO_CHECK.dir/
 
 # Qt build objects
+moc_*.cpp
+moc_*.cpp_parameters
 moc_*.cxx
 moc_*.cxx_parameters
 qrc_*.cxx
