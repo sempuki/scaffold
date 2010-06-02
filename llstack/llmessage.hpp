@@ -79,6 +79,7 @@ namespace Scaffold
 
         class Message 
         {
+            // TODO: endian not handled
             public:
                 Message (shared_ptr <ByteBuffer> d) : 
                     data_ (d), id_ (0), begin_ (d.get()->data), 
@@ -90,7 +91,7 @@ namespace Scaffold
                     pos_ (begin_), end_ (begin_), max_ (begin_ + d->size)
                 {}
 
-                void seek (size_t pos, ios_base::seekdir dir)
+                void seek (size_t pos, ios_base::seekdir dir = ios_base::cur)
                 {
                     switch (dir)
                     {
@@ -100,40 +101,59 @@ namespace Scaffold
                     }
                 }
 
+                template <typename T> void next () { pos_ += sizeof (T); }
+                template <typename T> void prev () { pos_ -= sizeof (T); }
+                
                 template <typename T>
                 void put (T value)
                 {
+                    T *ptr = (T *)pos_;
+                    *ptr = value;
                 }
 
                 template <typename T>
                 void get (T& value)
                 {
+                    T *ptr = (T *)pos_;
+                    value = *ptr;
                 }
 
                 template <typename T>
                 void push (T value)
                 {
+                    put (value);
+                    next <T> ();
                 }
 
                 template <typename T>
                 void pop (T& value)
                 {
+                    get (value);
+                    prev <T> ();
                 }
 
                 void push_header (uint8_t flags, uint32_t seq, uint8_t extra = 0)
                 {
+                    push (flags);
+                    push (seq);
+                    push (extra);
                 }
 
                 void pop_header (uint8_t &flags, uint32_t &seq, uint8_t &extra)
                 {
+                    pop (flags);
+                    pop (seq);
+                    pop (extra);
                 }
 
-                void push_block (size_t repetitions)
+                void push_block (uint8_t repetitions)
                 {
+                    push (repetitions);
                 }
 
-                void pop_block (size_t &repetitions)
+                void pop_block (uint8_t &repetitions)
                 {
+                    pop (repetitions);
                 }
 
             private:
