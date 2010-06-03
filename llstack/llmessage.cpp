@@ -20,8 +20,11 @@ namespace Scaffold
 {
     namespace LLStack 
     {
+        //=============================================================================
+        // boost.spirit based parser implementation
+
         template <typename Iterator>
-            struct skip_parser : boost::spirit::qi::grammar <Iterator>
+        struct skip_parser : boost::spirit::qi::grammar <Iterator>
         {
             boost::spirit::qi::rule <Iterator> start, comment;
 
@@ -35,7 +38,7 @@ namespace Scaffold
         };
 
         template <typename Iterator>
-            struct packet_info_parser : boost::spirit::qi::grammar <Iterator, skip_parser<Iterator> >
+        struct packet_info_parser : boost::spirit::qi::grammar <Iterator, skip_parser<Iterator> >
         {
             boost::spirit::qi::rule <Iterator, skip_parser<Iterator> > 
                 start, info, pinfo, binfo, vinfo, 
@@ -300,6 +303,9 @@ namespace Scaffold
 
         }; 
 
+        //=============================================================================
+        // template parser
+
         MessageParser::MessageParser (const char *filename)
             : run_ (false), file_ (filename)
         { 
@@ -373,6 +379,157 @@ namespace Scaffold
             return true;
         }
 
+
+        //=============================================================================
+        // Unchecked message type
+
+        Message::Message (shared_ptr <ByteBuffer> d) : 
+            data_ (d), id_ (0), begin_ (d.get()->data), 
+            pos_ (begin_), end_ (begin_), max_ (begin_ + d->size)
+        {}
+
+        Message::Message (shared_ptr <ByteBuffer> d, uint32_t id) : 
+            data_ (d), id_ (id), begin_ (d.get()->data), 
+            pos_ (begin_), end_ (begin_), max_ (begin_ + d->size)
+        {}
+
+        void Message::seek (size_t pos, SeekType dir)
+        {
+            switch (dir)
+            {
+                case Beg: pos_ = begin_ + pos; break;
+                case Cur: pos_ = pos_ + pos; break;
+                case End: pos_ = end_ - pos; break;
+            }
+        }
+
+        void Message::pushHeader (uint8_t flags, uint32_t seq, uint8_t extra)
+        {
+            push (flags);
+            pushBig (seq);
+            push (extra);
+        }
+
+        void Message::popHeader (uint8_t &flags, uint32_t &seq, uint8_t &extra)
+        {
+            pop (flags);
+            popBig (seq);
+            pop (extra);
+        }
+
+        void Message::pushMsgID (int priority, uint32_t id)
+        {
+            switch (priority)
+            {
+                case PacketInfo::HIGH: 
+                    pushBig <uint8_t> (id);
+                    break;
+
+                case PacketInfo::MEDIUM: 
+                    pushBig <uint16_t> (id | 0x0000FF00);
+                    break;
+
+                case PacketInfo::LOW: 
+                    pushBig <uint32_t> (id | 0xFFFF0000);
+                    break;
+
+                case PacketInfo::FIXED: 
+                    pushBig <uint32_t> (id);
+                    break;
+            }
+        }
+
+        void Message::popMsgID (int &priority, uint32_t &id)
+        {
+            uint32_t quad; getBig (quad);
+
+            if ((quad & 0xFF000000) == 0xFF000000)
+            {
+                if ((quad & 0xFFFF0000) == 0xFFFF0000)
+                {
+                    if ((quad & 0xFFFFFF00) == 0xFFFFFF00)
+                    {
+                        id = quad & 0xFFFFFFFF;
+                        priority = PacketInfo::FIXED;
+                        next <uint32_t> ();
+                    }
+                    else
+                    {
+                        id = quad & 0x0000FFFF;
+                        priority = PacketInfo::LOW;
+                        next <uint32_t> ();
+                    }
+                }
+                else
+                {
+                    id = quad & 0x00FF0000;
+                    priority = PacketInfo::MEDIUM;
+                    next <uint16_t> ();
+                }
+            }
+            else
+            {
+                id = quad & 0xFF000000;
+                priority = PacketInfo::HIGH;
+                next <uint8_t> ();
+            }
+        }
+
+        void Message::pushBlock (uint8_t repetitions) 
+        { 
+            push (repetitions); 
+        }
+
+        void Message::popBlock (uint8_t &repetitions) 
+        { 
+            pop (repetitions); 
+        }
+
+        void Message::print (std::ostream &out)
+        {
+            using std::ostream_iterator;
+            using std::copy;
+            using std::hex;
+
+            copy (begin_, end_, ostream_iterator <int> (out << hex, " "));
+        }
+
+        template <> void Message::push <QQuaternion> (QQuaternion value)
+        {
+            value.normalize(); // send normalized vector
+            push <float> (value.x());
+            push <float> (value.y());
+            push <float> (value.z());
+        }
+
+        template <> void Message::pop <QQuaternion> (QQuaternion &value)
+        {
+            QQuaternion result;
+            
+            float x, y, z; 
+            pop (x); pop (y); pop (z);
+            
+            if (isfinite (x) && !isnan (x) && 
+                isfinite (y) && !isnan (y) && 
+                isfinite (z) && !isnan (z))
+            {
+                result.setVector (x, y, z);
+
+                // de-normalize (w = sqrt (1 - x*x - y*y - z*z))
+                float w = 0.f, sq = x*x + y*y + z*z;
+
+                if (sq < 1.f) w = sqrt (1.f - sq);
+                else // numerically unstable as w->0
+                    result.normalize ();
+
+                result.setScalar (w);
+            }
+
+            value = result;
+        }
+
+        //=============================================================================
+        // Message factory
 
         MessageFactory::MessageFactory () : 
             error_ (false), parser_ ("message_template.msg")

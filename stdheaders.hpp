@@ -6,6 +6,9 @@
 #ifndef STD_HEADERS_H_
 #define STD_HEADERS_H_
 
+#include <cassert>
+#include <cmath>
+
 #include <ios>
 #include <iostream>
 #include <fstream>
@@ -17,7 +20,6 @@
 #include <memory>
 #include <algorithm>
 #include <iterator>
-#include <cassert>
 
 #include <tr1/cstdint>
 #include <tr1/memory>
@@ -26,6 +28,8 @@
     
 #include <QMutex>
 
+using std::isnan;
+using std::isfinite;
 using std::string;
 using std::stringstream;
 using std::for_each;

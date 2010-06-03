@@ -7,6 +7,8 @@
 #define LLPARSER_H_
 
 #include <QtEndian>
+#include <QVector3D>
+#include <QQuaternion>
 
 namespace Scaffold
 {
@@ -84,36 +86,12 @@ namespace Scaffold
             public:
                 enum SeekType { Beg, Cur, End };
 
-                Message (shared_ptr <ByteBuffer> d) : 
-                    data_ (d), id_ (0), begin_ (d.get()->data), 
-                    pos_ (begin_), end_ (begin_), max_ (begin_ + d->size)
-                {}
+                Message (shared_ptr <ByteBuffer> d);
+                Message (shared_ptr <ByteBuffer> d, uint32_t id);
+                
+                void seek (size_t pos, SeekType dir = Cur);
 
-                Message (shared_ptr <ByteBuffer> d, uint32_t id) : 
-                    data_ (d), id_ (id), begin_ (d.get()->data), 
-                    pos_ (begin_), end_ (begin_), max_ (begin_ + d->size)
-                {}
-
-                void seek (size_t pos, SeekType dir = Cur)
-                {
-                    switch (dir)
-                    {
-                        case Beg: pos_ = begin_ + pos; break;
-                        case Cur: pos_ = pos_ + pos; break;
-                        case End: pos_ = end_ + pos; break;
-                    }
-                }
-
-                template <typename T> 
-                void next () 
-                { 
-                    using std::max;
-
-                    pos_ += sizeof (T); 
-                    end_ = max (pos_, end_);
-
-                    assert (end_ <= max_);
-                }
+                template <typename T> void next () { pos_ += sizeof (T); end_ = std::max (pos_, end_); }
 
                 template <typename T> void put (T value) { T *ptr = (T *)pos_; *ptr = value; }
                 template <typename T> void putBig (T value) { qToBigEndian <T> (value, pos_); } 
@@ -131,92 +109,16 @@ namespace Scaffold
                 template <typename T> void popBig (T& value) { getBig (value); next <T> (); }
                 template <typename T> void popLittle (T& value) { getLittle (value); next <T> (); }
 
-                void pushHeader (uint8_t flags, uint32_t seq, uint8_t extra = 0)
-                {
-                    push (flags);
-                    pushBig (seq);
-                    push (extra);
-                }
+                void pushHeader (uint8_t flags, uint32_t seq, uint8_t extra = 0);
+                void popHeader (uint8_t &flags, uint32_t &seq, uint8_t &extra);
 
-                void popHeader (uint8_t &flags, uint32_t &seq, uint8_t &extra)
-                {
-                    pop (flags);
-                    popBig (seq);
-                    pop (extra);
-                }
+                void pushMsgID (int priority, uint32_t id);
+                void popMsgID (int &priority, uint32_t &id);
 
-                void pushMsgID (int priority, uint32_t id)
-                {
-                    switch (priority)
-                    {
-                        case PacketInfo::HIGH: 
-                            pushBig <uint8_t> (id);
-                            break;
+                void pushBlock (uint8_t repetitions);
+                void popBlock (uint8_t &repetitions);
 
-                        case PacketInfo::MEDIUM: 
-                            pushBig <uint16_t> (id | 0x0000FF00);
-                            break;
-
-                        case PacketInfo::LOW: 
-                            pushBig <uint32_t> (id | 0xFFFF0000);
-                            break;
-
-                        case PacketInfo::FIXED: 
-                            pushBig <uint32_t> (id);
-                            break;
-                    }
-                }
-
-                void popMsgID (int &priority, uint32_t &id)
-                {
-                    uint8_t id1; uint16_t id2; uint32_t id4;
-
-                    get (id1);
-                    if (id1 & 0xFF)
-                    {
-                        get (id2);
-                        if (id2 & 0xFFFF)
-                        {
-                            get (id4);
-                            if (id4 & 0xFFFFFF00)
-                            {
-                                priority = PacketInfo::FIXED;
-                                popBig <uint32_t> (id4);
-                                id = id4 & 0xFFFFFFFF;
-                            }
-                            else
-                            {
-                                priority = PacketInfo::LOW;
-                                popBig <uint32_t> (id4);
-                                id = id4 & 0x0000FFFF;
-                            }
-                        }
-                        else
-                        {
-                            priority = PacketInfo::MEDIUM;
-                            popBig <uint16_t> (id2);
-                            id = id2 & 0x000000FF;
-                        }
-                    }
-                    else
-                    {
-                        priority = PacketInfo::HIGH;
-                        pop <uint8_t> (id1);
-                        id = id1 & 0x000000FF;
-                    }
-                }
-
-                void pushBlock (uint8_t repetitions) { push (repetitions); }
-                void popBlock (uint8_t &repetitions) { pop (repetitions); }
-
-                void print (std::ostream &out)
-                {
-                    using std::ostream_iterator;
-                    using std::copy;
-                    using std::hex;
-
-                    copy (begin_, end_, ostream_iterator <int> (out << hex, " "));
-                }
+                void print (std::ostream &out);
 
             private:
                 shared_ptr <ByteBuffer> data_;
@@ -227,6 +129,9 @@ namespace Scaffold
                 uint8_t     *end_;
                 uint8_t     *max_;
         };
+
+        template <> void Message::push <QQuaternion> (QQuaternion value);
+        template <> void Message::pop <QQuaternion> (QQuaternion &value);
 
         class MessageParser
         {

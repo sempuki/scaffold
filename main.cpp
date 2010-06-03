@@ -161,19 +161,32 @@ int main (int argc, char** argv)
     LLStack::MessageFactory mf; 
     LLStack::Message *m = mf.create ("UseCircuitCode", 50);
 
+    QVector3D vout, vin (1.0, 1.0, 1.0);
+    QQuaternion qout, qin (1.0, 1.0, 1.0, 1.0);
+    uint32_t val;
+
     m->pushHeader (LLStack::RELIABLE_FLAG, 69);
     m->pushMsgID (LLStack::PacketInfo::LOW, 3);
+    m->push <uint32_t> (0xFFFF);
+    m->push (vin);
+    m->push (qin);
     m->print (cout); cout << endl;
 
     uint8_t flags, extra; uint32_t seq, id; int priority; 
     m->seek (0, LLStack::Message::Beg);
     m->popHeader (flags, seq, extra);
     m->popMsgID (priority, id);
+    m->pop (val);
+    m->pop (qout);
+    m->pop (vout);
 
     cout << hex << "flags: " << (int) flags << endl;
     cout << hex << "seq: " << seq << endl;
     cout << hex << "priority: " << priority << endl;
     cout << hex << "id: " << id << endl;
+    cout << hex << "val: " << val << endl;
+    cout << hex << "vec: " << vout.x() << ", " << vout.y() << ", " << vout.z() << endl;
+    cout << hex << "quat: " << qout.x() << ", " << qout.y() << ", " << qout.z() << ", " << qout.scalar() << endl;
 
     return 0;
 
@@ -181,8 +194,8 @@ int main (int argc, char** argv)
     const char *mycomp_types[] = { "my-type", "other-type" };
     const char *ctrl_types[] = { "app-control-type" };
 
-    factory.attach (new ComponentFactory <Control> ("app-control", ctrl_types, 2));
-    factory.attach (new ComponentFactory <MyComponent> ("my-component", mycomp_types, 1));
+    factory.attach (new ComponentFactory <Control> ("app-control", ctrl_types, 1));
+    factory.attach (new ComponentFactory <MyComponent> ("my-component", mycomp_types, 2));
 
     // entities
     entities.insert (factory.create ("test", "my-type"));
