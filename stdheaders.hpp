@@ -17,6 +17,7 @@
 #include <memory>
 #include <algorithm>
 #include <iterator>
+#include <cassert>
 
 #include <tr1/cstdint>
 #include <tr1/memory>
@@ -25,7 +26,6 @@
     
 #include <QMutex>
 
-using std::ios_base;
 using std::string;
 using std::stringstream;
 using std::for_each;

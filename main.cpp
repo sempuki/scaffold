@@ -161,6 +161,20 @@ int main (int argc, char** argv)
     LLStack::MessageFactory mf; 
     LLStack::Message *m = mf.create ("UseCircuitCode", 50);
 
+    m->pushHeader (LLStack::RELIABLE_FLAG, 69);
+    m->pushMsgID (LLStack::PacketInfo::LOW, 3);
+    m->print (cout); cout << endl;
+
+    uint8_t flags, extra; uint32_t seq, id; int priority; 
+    m->seek (0, LLStack::Message::Beg);
+    m->popHeader (flags, seq, extra);
+    m->popMsgID (priority, id);
+
+    cout << hex << "flags: " << (int) flags << endl;
+    cout << hex << "seq: " << seq << endl;
+    cout << hex << "priority: " << priority << endl;
+    cout << hex << "id: " << id << endl;
+
     return 0;
 
     // components

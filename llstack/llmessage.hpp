@@ -81,8 +81,9 @@ namespace Scaffold
 
         class Message 
         {
-            // TODO: endian not handled
             public:
+                enum SeekType { Beg, Cur, End };
+
                 Message (shared_ptr <ByteBuffer> d) : 
                     data_ (d), id_ (0), begin_ (d.get()->data), 
                     pos_ (begin_), end_ (begin_), max_ (begin_ + d->size)
@@ -93,150 +94,128 @@ namespace Scaffold
                     pos_ (begin_), end_ (begin_), max_ (begin_ + d->size)
                 {}
 
-                void seek (size_t pos, ios_base::seekdir dir = ios_base::cur)
+                void seek (size_t pos, SeekType dir = Cur)
                 {
                     switch (dir)
                     {
-                        case ios_base::beg: pos_ = begin_ + pos; break;
-                        case ios_base::cur: pos_ = pos_ + pos; break;
-                        case ios_base::end: pos_ = end_ + pos; break;
+                        case Beg: pos_ = begin_ + pos; break;
+                        case Cur: pos_ = pos_ + pos; break;
+                        case End: pos_ = end_ + pos; break;
                     }
                 }
 
                 template <typename T> 
                 void next () 
                 { 
+                    using std::max;
+
                     pos_ += sizeof (T); 
+                    end_ = max (pos_, end_);
+
+                    assert (end_ <= max_);
                 }
 
-                template <typename T> 
-                void prev () 
-                { 
-                    pos_ -= sizeof (T); 
-                }
-                
-                template <typename T>
-                void put (T value)
-                {
-                    T *ptr = (T *)pos_;
-                    *ptr = value;
-                }
+                template <typename T> void put (T value) { T *ptr = (T *)pos_; *ptr = value; }
+                template <typename T> void putBig (T value) { qToBigEndian <T> (value, pos_); } 
+                template <typename T> void putLittle (T value) { qToLittleEndian <T> (value, pos_); } 
 
-                template <typename T>
-                void get (T& value)
-                {
-                    T *ptr = (T *)pos_;
-                    value = *ptr;
-                }
+                template <typename T> void get (T& value) { T *ptr = (T *)pos_; value = *ptr; }
+                template <typename T> void getBig (T& value) { value = qFromBigEndian <T> (pos_); }
+                template <typename T> void getLittle (T& value) { value = qFromLittleEndian <T> (pos_); } 
 
-                template <typename T>
-                void push (T value)
-                {
-                    put (value);
-                    next <T> ();
-                }
+                template <typename T> void push (T value) { put (value); next <T> (); }
+                template <typename T> void pushBig (T value) { putBig (value); next <T> (); }
+                template <typename T> void pushLittle (T value) { putLittle (value); next <T> (); } 
 
-                template <typename T>
-                void pop (T& value)
-                {
-                    get (value);
-                    next <T> ();
-                }
+                template <typename T> void pop (T& value) { get (value); next <T> (); }
+                template <typename T> void popBig (T& value) { getBig (value); next <T> (); }
+                template <typename T> void popLittle (T& value) { getLittle (value); next <T> (); }
 
-                void push_header (uint8_t flags, uint32_t seq, uint8_t extra = 0)
+                void pushHeader (uint8_t flags, uint32_t seq, uint8_t extra = 0)
                 {
                     push (flags);
-
-                    qToBigEndian (seq, pos_); 
-                    next <uint32_t> ();
-
+                    pushBig (seq);
                     push (extra);
                 }
 
-                void pop_header (uint8_t &flags, uint32_t &seq, uint8_t &extra)
+                void popHeader (uint8_t &flags, uint32_t &seq, uint8_t &extra)
                 {
                     pop (flags);
-
-                    seq = qFromBigEndian (pos_); 
-                    next <uint32_t> ();
-
+                    popBig (seq);
                     pop (extra);
                 }
 
-                void push_message_id (int priority, uint32_t id)
+                void pushMsgID (int priority, uint32_t id)
                 {
                     switch (priority)
                     {
-                        case PacketInfo::LOW: 
-                            push (qToBigEndian ((uint8_t) id));
+                        case PacketInfo::HIGH: 
+                            pushBig <uint8_t> (id);
                             break;
 
                         case PacketInfo::MEDIUM: 
-                            push (qToBigEndian ((uint16_t) id | 0x0000FF00));
+                            pushBig <uint16_t> (id | 0x0000FF00);
                             break;
 
-                        case PacketInfo::HIGH: 
-                            push (qToBigEndian ((uint32_t) id | 0xFFFF0000));
+                        case PacketInfo::LOW: 
+                            pushBig <uint32_t> (id | 0xFFFF0000);
                             break;
 
                         case PacketInfo::FIXED: 
-                            push (qToBigEndian ((uint32_t) id));
+                            pushBig <uint32_t> (id);
                             break;
                     }
                 }
 
-                void pop_message_id (int &priority, uint32_t &id)
+                void popMsgID (int &priority, uint32_t &id)
                 {
-                    uint8_t id1; 
-                    uint16_t id2; 
-                    uint32_t id4;
+                    uint8_t id1; uint16_t id2; uint32_t id4;
 
                     get (id1);
-
                     if (id1 & 0xFF)
                     {
                         get (id2);
-
                         if (id2 & 0xFFFF)
                         {
                             get (id4);
-
                             if (id4 & 0xFFFFFF00)
                             {
                                 priority = PacketInfo::FIXED;
-                                id = qFromBigEndian (id4 & 0xFFFFFFFF);
-                                next <uint32_t> ();
+                                popBig <uint32_t> (id4);
+                                id = id4 & 0xFFFFFFFF;
                             }
                             else
                             {
-                                priority = PacketInfo::HIGH;
-                                id = qFromBigEndian (id4 & 0x0000FFFF);
-                                next <uint32_t> ();
+                                priority = PacketInfo::LOW;
+                                popBig <uint32_t> (id4);
+                                id = id4 & 0x0000FFFF;
                             }
                         }
                         else
                         {
                             priority = PacketInfo::MEDIUM;
-                            id = qFromBigEndian (id2 & 0x000000FF);
-                            next <uint16_t> ();
+                            popBig <uint16_t> (id2);
+                            id = id2 & 0x000000FF;
                         }
                     }
                     else
                     {
                         priority = PacketInfo::HIGH;
-                        id = qFromBigEndian (id1 & 0x000000FF);
-                        next <uint8_t> ();
+                        pop <uint8_t> (id1);
+                        id = id1 & 0x000000FF;
                     }
                 }
 
-                void push_block (uint8_t repetitions)
-                {
-                    push (repetitions);
-                }
+                void pushBlock (uint8_t repetitions) { push (repetitions); }
+                void popBlock (uint8_t &repetitions) { pop (repetitions); }
 
-                void pop_block (uint8_t &repetitions)
+                void print (std::ostream &out)
                 {
-                    pop (repetitions);
+                    using std::ostream_iterator;
+                    using std::copy;
+                    using std::hex;
+
+                    copy (begin_, end_, ostream_iterator <int> (out << hex, " "));
                 }
 
             private:
@@ -268,78 +247,19 @@ namespace Scaffold
         class MessageFactory
         {
             public:
-                MessageFactory ()
-                    : error_ (false), parser_ ("message_template.msg")
-                {
-                    error_ = parser_.parse (info_);
-
-                    for (int i=0; i < MESSAGE_POOL_SIZE; ++i)
-                        free_.push_back (new ByteBuffer (MAX_MESSAGE_SIZE));
-
-                    std::make_heap (free_.begin(), free_.end());
-                }
-
-                ~MessageFactory ()
-                {
-                    for_each (free_.begin(), free_.end(), mem_fn (&ByteBuffer::dispose));
-                    for_each (used_.begin(), used_.end(), mem_fn (&ByteBuffer::dispose));
-                }
+                MessageFactory ();
+                ~MessageFactory ();
 
             public:
-                Message *create (const string &name, size_t size)
-                {
-                    if (next_free_buffer_()->size < size)
-                        add_free_buffer_ (size);
-
-                    ByteBuffer *buf = get_free_buffer_ ();
-
-                    shared_ptr <ByteBuffer> ptr 
-                        (buf, bind (&MessageFactory::set_free_buffer_, this, _1));
-
-                    Message *m = new Message (ptr, size);
-
-                    set_used_buffer_ (buf);
-
-                    return m;
-                }
+                Message *create (const string &name, size_t size);
 
             private:
-                ByteBuffer *next_free_buffer_ ()
-                {
-                    return free_[0];
-                }
+                ByteBuffer *add_free_buffer_ (size_t size);
+                ByteBuffer *next_free_buffer_ ();
+                ByteBuffer *get_free_buffer_ ();
 
-                ByteBuffer *add_free_buffer_ (size_t size)
-                {
-                    ByteBuffer *buf = new ByteBuffer (size);
-
-                    free_.push_back (buf);
-                    push_heap (free_.begin(), free_.end());
-
-                    return buf;
-                }
-
-                ByteBuffer *get_free_buffer_ ()
-                {
-                    pop_heap (free_.begin(), free_.end());
-                    ByteBuffer *buf = free_.back ();
-
-                    free_.pop_back ();
-                    return buf;
-                }
-
-                void set_free_buffer_ (ByteBuffer *buf)
-                {
-                    free_.push_back (buf);
-                    push_heap (free_.begin(), free_.end());
-
-                    used_.erase (buf);
-                }
-
-                void set_used_buffer_ (ByteBuffer *buf)
-                {
-                    used_.insert (buf);
-                }
+                void set_free_buffer_ (ByteBuffer *buf);
+                void set_used_buffer_ (ByteBuffer *buf);
 
             private:
                 bool    error_;

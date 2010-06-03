@@ -372,6 +372,78 @@ namespace Scaffold
 
             return true;
         }
+
+
+        MessageFactory::MessageFactory () : 
+            error_ (false), parser_ ("message_template.msg")
+        {
+            error_ = parser_.parse (info_);
+
+            for (int i=0; i < MESSAGE_POOL_SIZE; ++i)
+                free_.push_back (new ByteBuffer (MAX_MESSAGE_SIZE));
+
+            std::make_heap (free_.begin(), free_.end());
+        }
+
+        MessageFactory::~MessageFactory ()
+        {
+            for_each (free_.begin(), free_.end(), mem_fn (&ByteBuffer::dispose));
+            for_each (used_.begin(), used_.end(), mem_fn (&ByteBuffer::dispose));
+        }
+
+        Message *MessageFactory::create (const string &name, size_t size)
+        {
+            if (next_free_buffer_()->size < size)
+                add_free_buffer_ (size);
+
+            ByteBuffer *buf = get_free_buffer_ ();
+
+            shared_ptr <ByteBuffer> ptr 
+                (buf, bind (&MessageFactory::set_free_buffer_, this, _1));
+
+            Message *m = new Message (ptr, size);
+
+            set_used_buffer_ (buf);
+
+            return m;
+        }
+
+        ByteBuffer *MessageFactory::next_free_buffer_ ()
+        {
+            return free_[0];
+        }
+
+        ByteBuffer *MessageFactory::add_free_buffer_ (size_t size)
+        {
+            ByteBuffer *buf = new ByteBuffer (size);
+
+            free_.push_back (buf);
+            push_heap (free_.begin(), free_.end());
+
+            return buf;
+        }
+
+        ByteBuffer *MessageFactory::get_free_buffer_ ()
+        {
+            pop_heap (free_.begin(), free_.end());
+            ByteBuffer *buf = free_.back ();
+
+            free_.pop_back ();
+            return buf;
+        }
+
+        void MessageFactory::set_free_buffer_ (ByteBuffer *buf)
+        {
+            free_.push_back (buf);
+            push_heap (free_.begin(), free_.end());
+
+            used_.erase (buf);
+        }
+
+        void MessageFactory::set_used_buffer_ (ByteBuffer *buf)
+        {
+            used_.insert (buf);
+        }
     }
 }
 
