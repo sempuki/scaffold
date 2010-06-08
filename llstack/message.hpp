@@ -14,6 +14,7 @@ namespace Scaffold
 {
     namespace LLStack
     {
+        const float MAX_BPS (1000000.0f);
         const size_t MAX_MESSAGE_SIZE (2048);
         const size_t MESSAGE_POOL_SIZE (16);
         const uint8_t ZERO_CODE_FLAG (0x80);
@@ -84,6 +85,8 @@ namespace Scaffold
         class Message 
         {
             public:
+                typedef std::vector <string> ParamList;
+
                 enum SeekType { Beg, Cur, End };
 
                 Message (shared_ptr <ByteBuffer> d);
@@ -91,23 +94,32 @@ namespace Scaffold
                 
                 void seek (size_t pos, SeekType dir = Cur);
 
-                template <typename T> void next () { pos_ += sizeof (T); end_ = std::max (pos_, end_); }
+                template <typename T> void next () 
+                { 
+                    using std::max;
+
+                    pos_ += sizeof (T); 
+                    end_ = max (pos_, end_); 
+
+                    assert (pos_ <= end_);
+                    assert (end_ <= max_);
+                }
 
                 template <typename T> void put (T value) { T *ptr = (T *)pos_; *ptr = value; }
-                template <typename T> void putBig (T value) { qToBigEndian <T> (value, pos_); } 
-                template <typename T> void putLittle (T value) { qToLittleEndian <T> (value, pos_); } 
+                template <typename T> void putBigEndian (T value) { qToBigEndian <T> (value, pos_); } 
+                template <typename T> void putLittleEndian (T value) { qToLittleEndian <T> (value, pos_); } 
 
                 template <typename T> void get (T& value) { T *ptr = (T *)pos_; value = *ptr; }
-                template <typename T> void getBig (T& value) { value = qFromBigEndian <T> (pos_); }
-                template <typename T> void getLittle (T& value) { value = qFromLittleEndian <T> (pos_); } 
+                template <typename T> void getBigEndian (T& value) { value = qFromBigEndian <T> (pos_); }
+                template <typename T> void getLittleEndian (T& value) { value = qFromLittleEndian <T> (pos_); } 
 
                 template <typename T> void push (T value) { put (value); next <T> (); }
-                template <typename T> void pushBig (T value) { putBig (value); next <T> (); }
-                template <typename T> void pushLittle (T value) { putLittle (value); next <T> (); } 
+                template <typename T> void pushBigEndian (T value) { putBigEndian (value); next <T> (); }
+                template <typename T> void pushLittleEndian (T value) { putLittleEndian (value); next <T> (); } 
 
                 template <typename T> void pop (T& value) { get (value); next <T> (); }
-                template <typename T> void popBig (T& value) { getBig (value); next <T> (); }
-                template <typename T> void popLittle (T& value) { getLittle (value); next <T> (); }
+                template <typename T> void popBigEndian (T& value) { getBigEndian (value); next <T> (); }
+                template <typename T> void popLittleEndian (T& value) { getLittleEndian (value); next <T> (); }
 
                 void pushHeader (uint8_t flags, uint32_t seq, uint8_t extra = 0);
                 void popHeader (uint8_t &flags, uint32_t &seq, uint8_t &extra);
@@ -117,6 +129,11 @@ namespace Scaffold
 
                 void pushBlock (uint8_t repetitions);
                 void popBlock (uint8_t &repetitions);
+
+                void pushBufferSize (size_t size);
+                void pushBuffer (const std::vector <uint8_t> &buf);
+                void popBuffer1 (std::vector <uint8_t> &buf, uint8_t &size);
+                void popBuffer2 (std::vector <uint8_t> &buf, uint16_t &size);
 
                 ByteBuffer *data () { return data_.get(); }
 
@@ -132,6 +149,8 @@ namespace Scaffold
                 uint8_t     *max_;
         };
 
+        template <> void Message::push <string> (string value);
+        template <> void Message::pop <string> (string &value);
         template <> void Message::push <QQuaternion> (QQuaternion value);
         template <> void Message::pop <QQuaternion> (QQuaternion &value);
 

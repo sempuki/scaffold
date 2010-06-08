@@ -34,6 +34,9 @@ namespace Scaffold
                 /// randomizes the contents
                 void randomize();
 
+                /// creates a random UUID
+                static UUID random() { UUID r; r.randomize(); return r; }
+
                 /// Creates an UUID from string.
                 /// @param str String.
                 void fromString(const char *str);
@@ -42,6 +45,7 @@ namespace Scaffold
                 /// Converts the UUID to a string.
                 /// @return UUID as a string.
                 string toString() const;
+                operator string () const { return toString(); }
 
                 /// Tests whether a string contains a valid UUID
                 /// @param str String.

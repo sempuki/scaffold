@@ -13,6 +13,7 @@
 #include <boost/spirit/include/phoenix_object.hpp>
 #include <boost/fusion/include/io.hpp>
 
+#include <cstring>
 
 //=============================================================================
 
@@ -395,25 +396,103 @@ namespace Scaffold
 
         void Message::seek (size_t pos, SeekType dir)
         {
+            using std::max;
+
             switch (dir)
             {
                 case Beg: pos_ = begin_ + pos; break;
                 case Cur: pos_ = pos_ + pos; break;
                 case End: pos_ = end_ - pos; break;
             }
+
+            end_ = max (pos_, end_); 
+
+            assert (pos_ <= end_);
+            assert (end_ <= max_);
+        }
+        
+        template <> void Message::push <string> (string str)
+        {
+            using std::copy;
+
+            pushBufferSize (str.size() + 1); 
+
+            copy (str.begin(), str.end(), pos_);
+            seek (str.size());
+
+            push <uint8_t> (0); // null term
+        }
+
+        template <> void Message::pop <string> (string &str)
+        {
+            using std::copy;
+
+            size_t size;
+            uint8_t size1; get (size1);
+            uint16_t size2; get (size2);
+
+            if (*(pos_ + size1) == 0)
+            {
+                size = size1;
+                next <uint8_t> ();
+            }
+            else if (*(pos_ + size2) == 0)
+            {
+                size = size2;
+                next <uint16_t> ();
+            }
+            else return;
+
+            str.resize (size - 1);
+            copy (pos_, pos_+size-1, str.begin());
+            seek (size);
+        }
+
+        template <> void Message::push <QQuaternion> (QQuaternion value)
+        {
+            value.normalize(); // send normalized vector
+            push <float> (value.x());
+            push <float> (value.y());
+            push <float> (value.z());
+        }
+
+        template <> void Message::pop <QQuaternion> (QQuaternion &value)
+        {
+            QQuaternion result;
+            
+            float x, y, z; 
+            pop (x); pop (y); pop (z);
+            
+            if (isfinite (x) && !isnan (x) && 
+                isfinite (y) && !isnan (y) && 
+                isfinite (z) && !isnan (z))
+            {
+                result.setVector (x, y, z);
+
+                // de-normalize (w = sqrt (1 - x*x - y*y - z*z))
+                float w = 0.f, sq = x*x + y*y + z*z;
+
+                if (sq < 1.f) w = sqrt (1.f - sq);
+                else // numerically unstable as w->0
+                    result.normalize ();
+
+                result.setScalar (w);
+            }
+
+            value = result;
         }
 
         void Message::pushHeader (uint8_t flags, uint32_t seq, uint8_t extra)
         {
             push (flags);
-            pushBig (seq);
+            pushBigEndian (seq);
             push (extra);
         }
 
         void Message::popHeader (uint8_t &flags, uint32_t &seq, uint8_t &extra)
         {
             pop (flags);
-            popBig (seq);
+            popBigEndian (seq);
             pop (extra);
         }
 
@@ -422,26 +501,26 @@ namespace Scaffold
             switch (priority)
             {
                 case PacketInfo::HIGH: 
-                    pushBig <uint8_t> (id);
+                    pushBigEndian <uint8_t> (id);
                     break;
 
                 case PacketInfo::MEDIUM: 
-                    pushBig <uint16_t> (id | 0x0000FF00);
+                    pushBigEndian <uint16_t> (id | 0x0000FF00);
                     break;
 
                 case PacketInfo::LOW: 
-                    pushBig <uint32_t> (id | 0xFFFF0000);
+                    pushBigEndian <uint32_t> (id | 0xFFFF0000);
                     break;
 
                 case PacketInfo::FIXED: 
-                    pushBig <uint32_t> (id);
+                    pushBigEndian <uint32_t> (id);
                     break;
             }
         }
 
         void Message::popMsgID (int &priority, uint32_t &id)
         {
-            uint32_t quad; getBig (quad);
+            uint32_t quad; getBigEndian (quad);
 
             if ((quad & 0xFF000000) == 0xFF000000)
             {
@@ -485,6 +564,48 @@ namespace Scaffold
             pop (repetitions); 
         }
 
+        void Message::pushBufferSize (size_t size)
+        {
+            if (size < 256)
+                pushBigEndian ((uint8_t) size);
+            else if (size < 65536)
+                pushBigEndian ((uint16_t) size);
+            else // 4GB
+                pushBigEndian ((uint32_t) size);
+        }
+
+        void Message::pushBuffer (const std::vector <uint8_t> &buf)
+        {
+            using std::copy;
+
+            pushBufferSize (buf.size());
+
+            copy (buf.begin(), buf.end(), pos_);
+            seek (buf.size());
+        }
+
+        void Message::popBuffer1 (std::vector <uint8_t> &buf, uint8_t &size)
+        {
+            using std::copy;
+
+            pop (size); 
+            buf.resize (size);
+
+            copy (pos_, pos_+size, buf.begin());
+            seek (size);
+        }
+
+        void Message::popBuffer2 (std::vector <uint8_t> &buf, uint16_t &size)
+        {
+            using std::copy;
+
+            popBigEndian (size); 
+            buf.resize (size);
+
+            copy (pos_, pos_+size, buf.begin());
+            seek (size);
+        }
+
         void Message::print (std::ostream &out)
         {
             using std::ostream_iterator;
@@ -492,40 +613,6 @@ namespace Scaffold
             using std::hex;
 
             copy (begin_, end_, ostream_iterator <int> (out << hex, " "));
-        }
-
-        template <> void Message::push <QQuaternion> (QQuaternion value)
-        {
-            value.normalize(); // send normalized vector
-            push <float> (value.x());
-            push <float> (value.y());
-            push <float> (value.z());
-        }
-
-        template <> void Message::pop <QQuaternion> (QQuaternion &value)
-        {
-            QQuaternion result;
-            
-            float x, y, z; 
-            pop (x); pop (y); pop (z);
-            
-            if (isfinite (x) && !isnan (x) && 
-                isfinite (y) && !isnan (y) && 
-                isfinite (z) && !isnan (z))
-            {
-                result.setVector (x, y, z);
-
-                // de-normalize (w = sqrt (1 - x*x - y*y - z*z))
-                float w = 0.f, sq = x*x + y*y + z*z;
-
-                if (sq < 1.f) w = sqrt (1.f - sq);
-                else // numerically unstable as w->0
-                    result.normalize ();
-
-                result.setScalar (w);
-            }
-
-            value = result;
         }
 
         //=============================================================================

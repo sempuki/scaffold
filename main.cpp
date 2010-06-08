@@ -91,8 +91,16 @@ struct Logic : public Module
                     {
                         cout << "got session" << endl;
 
-                        if (session->isConnected())
+                        if (session->isConnected() && stream->isConnected())
+                        {
                             cout << "logged in" << endl;
+
+                            stream->SendUseCircuitCodePacket ();
+                            stream->SendCompleteAgentMovementPacket ();
+                            stream->SendAgentThrottlePacket ();
+                            stream->SendAgentWearablesRequestPacket ();
+                            stream->SendRexStartupPacket ("started"); 
+                        }
                         else
                             cout << "login failed" << endl;
 

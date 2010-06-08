@@ -461,18 +461,85 @@ namespace Scaffold
 
         void Stream::SendCompleteAgentMovementPacket ()
         {
+            auto_ptr <Message> m = factory_.create (CompleteAgentMovement);
+
+            m->pushHeader (RELIABLE_FLAG, get_sequence_num_());
+            m->pushMsgID (PacketInfo::LOW, 249);
+            
+            m->push (streamparam_.agent_id);
+            m->push (streamparam_.session_id);
+            m->push (streamparam_.circuit_code);
+
+            send_buffer_ (m->data());
         }
 
         void Stream::SendAgentThrottlePacket ()
         {
+            auto_ptr <Message> m = factory_.create (AgentThrottle);
+
+            m->pushHeader (RELIABLE_FLAG | ZERO_CODE_FLAG, get_sequence_num_());
+            m->pushMsgID (PacketInfo::LOW, 81);
+
+            m->push (streamparam_.agent_id);
+            m->push (streamparam_.session_id);
+            m->push (streamparam_.circuit_code);
+
+            m->push <uint32_t> (0); // generation counter
+
+            m->pushBufferSize (7);
+            m->push (MAX_BPS * 0.1f);  // resend
+            m->push (MAX_BPS * 0.1f);  // land
+            m->push (MAX_BPS * 0.02f); // wind
+            m->push (MAX_BPS * 0.02f); // cloud
+            m->push (MAX_BPS * 0.25f); // task
+            m->push (MAX_BPS * 0.26f); // texture
+            m->push (MAX_BPS * 0.25f); // asset
+            
+            send_buffer_ (m->data());
         }
 
         void Stream::SendAgentWearablesRequestPacket ()
         {
+            auto_ptr <Message> m = factory_.create (AgentWearablesRequest);
+
+            m->pushHeader (RELIABLE_FLAG, get_sequence_num_());
+            m->pushMsgID (PacketInfo::LOW, 381);
+            
+            m->push (streamparam_.agent_id);
+            m->push (streamparam_.session_id);
+
+            send_buffer_ (m->data());
         }
 
         void Stream::SendRexStartupPacket (const string &state)
         {
+            Message::ParamList param;
+
+            param.push_back (streamparam_.agent_id);
+            param.push_back (state);
+
+            SendGenericMessage ("RexStartup", param);
+        }
+
+        void Stream::SendGenericMessage (const string &method, const Message::ParamList &param)
+        {
+            auto_ptr <Message> m = factory_.create (GenericMessage);
+
+            m->pushHeader (RELIABLE_FLAG | ZERO_CODE_FLAG, get_sequence_num_());
+            m->pushMsgID (PacketInfo::LOW, 261);
+            
+            m->push (streamparam_.agent_id);
+            m->push (streamparam_.session_id);
+            m->push (UUID::random ()); // TransactionID
+
+            m->push (method);
+            m->push (UUID::random ()); // InvoiceID
+
+            m->pushBlock (param.size());
+            for_each (param.begin(), param.end(), 
+                    bind (&Message::push <string>, m.get(), _1));
+
+            send_buffer_ (m->data());
         }
 
         void Stream::on_host_found ()

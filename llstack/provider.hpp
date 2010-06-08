@@ -185,6 +185,7 @@ namespace Scaffold
                 void SendAgentThrottlePacket ();
                 void SendAgentWearablesRequestPacket ();
                 void SendRexStartupPacket (const string &state); 
+                void SendGenericMessage (const string &method, const Message::ParamList &parms);
 
             protected slots:
                 void on_host_found ();
