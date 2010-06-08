@@ -548,8 +548,11 @@ namespace Scaffold
             for_each (used_.begin(), used_.end(), mem_fn (&ByteBuffer::dispose));
         }
 
-        Message *MessageFactory::create (const string &name, size_t size)
+        auto_ptr <Message> MessageFactory::create (uint32_t id, size_t size)
         {
+            if (size == 0)
+                size = MAX_MESSAGE_SIZE;
+
             if (next_free_buffer_()->size < size)
                 add_free_buffer_ (size);
 
@@ -558,11 +561,11 @@ namespace Scaffold
             shared_ptr <ByteBuffer> ptr 
                 (buf, bind (&MessageFactory::set_free_buffer_, this, _1));
 
-            Message *m = new Message (ptr, size);
+            auto_ptr <Message> msg (new Message (ptr, id));
 
             set_used_buffer_ (buf);
 
-            return m;
+            return msg;
         }
 
         ByteBuffer *MessageFactory::next_free_buffer_ ()

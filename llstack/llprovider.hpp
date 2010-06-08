@@ -9,7 +9,10 @@
 #include "application.hpp"
 #include "service.hpp"
 #include "session.hpp"
-#include "lluuid.hpp"
+
+#include "llstack/lluuid.hpp"
+#include "llstack/llmessageid.hpp"
+#include "llstack/llmessage.hpp"
 
 #include <QUrl>
 #include <QUdpSocket>
@@ -71,7 +74,8 @@ namespace Scaffold
             UUID    agent_id;
             UUID    session_id;
             UUID    region_id;
-            int     circuit_code;
+
+            uint32_t circuit_code;
         };
 
         //=========================================================================
@@ -176,15 +180,32 @@ namespace Scaffold
 
                 void pump ();
 
+                void SendUseCircuitCodePacket ();
+                void SendCompleteAgentMovementPacket ();
+                void SendAgentThrottlePacket ();
+                void SendAgentWearablesRequestPacket ();
+                void SendRexStartupPacket (const string &state); 
+
             protected slots:
-                void on_read_ready ();
                 void on_host_found ();
                 void on_connected ();
+                void on_disconnected ();
+                void on_ready_read ();
+                void on_bytes_written (qint64 bytes);
+                void on_state_changed (QAbstractSocket::SocketState state);
                 void on_error (QAbstractSocket::SocketError);
 
             private:
-                bool        connected_;
-                QUdpSocket  udp_;
+                int get_sequence_num_ ();
+
+            private:
+                bool            connected_;
+                int             sequence_;
+
+                MessageIDMap    idmap_;
+                MessageNameMap  namemap_;
+                MessageFactory  factory_;
+                QUdpSocket      udp_;
 
                 StreamParameters    streamparam_;
                 SessionParameters   sessionparam_;

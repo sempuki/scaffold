@@ -25,9 +25,10 @@ add_executable (test
     capabilities.cpp 
     application.cpp
     llstack/lluuid.cpp
+    llstack/llmessage.cpp
+    llstack/llmessageid.cpp
     llstack/llprovider.cpp 
     llstack/moc_llprovider.cpp
-    llstack/llmessage.cpp
     moc_xmlrpc.cpp
     moc_capabilities.cpp
     moc_application.cpp

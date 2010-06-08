@@ -7,9 +7,7 @@
 #include "capabilities.hpp"
 #include "xmlrpc.hpp"
 
-#include "llmessageid.hpp"
-#include "lluuid.hpp"
-#include "llprovider.hpp"
+#include "llstack/llprovider.hpp"
 
 #include <QObject>
 #include <QVariant>
@@ -389,15 +387,19 @@ namespace Scaffold
         //=========================================================================
         // LLStream
 
-        Stream::Stream ()
-            : Connectivity::Stream ("ll-stream"), udp_ (this)
+        Stream::Stream () : 
+            Connectivity::Stream ("ll-stream"), 
+            sequence_ (1), 
+            idmap_ (get_msg_id_map ()),
+            namemap_ (get_msg_name_map ()),
+            udp_ (this)
         {
             QObject::connect (&udp_, SIGNAL(hostFound()), this, SLOT(on_host_found()));
             QObject::connect (&udp_, SIGNAL(connected()), this, SLOT(on_connected()));
             QObject::connect (&udp_, SIGNAL(error(QAbstractSocket::SocketError)), 
                     this, SLOT(on_error(QAbstractSocket::SocketError)));
 
-            QObject::connect (&udp_, SIGNAL(readyRead()), this, SLOT(on_connected()));
+            QObject::connect (&udp_, SIGNAL(readyRead()), this, SLOT(on_ready_read()));
         }
 
         Stream::~Stream ()
@@ -431,9 +433,10 @@ namespace Scaffold
 
         bool Stream::disconnect ()
         {
-            udp_.close ();
+            udp_.disconnectFromHost ();
 
-            connected_ = udp_.waitForDisconnected (1000);
+            connected_ = (udp_.state() == QAbstractSocket::UnconnectedState || 
+                    udp_.waitForDisconnected (1000));
 
             return connected_;
         }
@@ -442,9 +445,35 @@ namespace Scaffold
         {
         }
                 
-        void Stream::on_read_ready ()
+        void Stream::SendUseCircuitCodePacket ()
         {
-            cout << "on read ready" << endl;
+            auto_ptr <Message> m = factory_.create (UseCircuitCode);
+
+            m->pushHeader (RELIABLE_FLAG, get_sequence_num_());
+            m->pushMsgID (PacketInfo::LOW, 3);
+            
+            m->push (streamparam_.circuit_code);
+            m->push (streamparam_.session_id);
+            m->push (streamparam_.agent_id);
+
+            ByteBuffer *buf = m->data();
+            udp_.write ((const char *)buf->data, buf->size);
+        }
+
+        void Stream::SendCompleteAgentMovementPacket ()
+        {
+        }
+
+        void Stream::SendAgentThrottlePacket ()
+        {
+        }
+
+        void Stream::SendAgentWearablesRequestPacket ()
+        {
+        }
+
+        void Stream::SendRexStartupPacket (const string &state)
+        {
         }
 
         void Stream::on_host_found ()
@@ -457,9 +486,34 @@ namespace Scaffold
             cout << "udp connected" << endl;
         }
 
+        void Stream::on_disconnected ()
+        {
+            cout << "udp disconnected" << endl;
+        }
+
+        void Stream::on_ready_read ()
+        {
+            cout << "ready for reading" << endl;
+        }
+
+        void Stream::on_bytes_written (qint64 bytes)
+        {
+            cout << "udp bytes written " << bytes << endl;
+        }
+
+        void Stream::on_state_changed (QAbstractSocket::SocketState state)
+        {
+            cout << "udp state changed " << state << endl;
+        }
+
         void Stream::on_error (QAbstractSocket::SocketError err)
         {
             cout << "udp error: " << err << endl;
+        }
+                
+        int Stream::get_sequence_num_ ()
+        {
+            return sequence_ ++;
         }
                 
         //=========================================================================

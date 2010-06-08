@@ -118,6 +118,8 @@ namespace Scaffold
                 void pushBlock (uint8_t repetitions);
                 void popBlock (uint8_t &repetitions);
 
+                ByteBuffer *data () { return data_.get(); }
+
                 void print (std::ostream &out);
 
             private:
@@ -156,7 +158,7 @@ namespace Scaffold
                 ~MessageFactory ();
 
             public:
-                Message *create (const string &name, size_t size);
+                auto_ptr <Message> create (uint32_t id, size_t size = 0);
 
             private:
                 ByteBuffer *add_free_buffer_ (size_t size);
