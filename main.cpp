@@ -6,8 +6,8 @@
 #include "stdheaders.hpp"
 #include "application.hpp"
 #include "session.hpp"
-#include "llstack/llprovider.hpp"
-#include "llstack/llmessage.hpp"
+#include "llstack/provider.hpp"
+#include "llstack/message.hpp"
 
 
 //=============================================================================

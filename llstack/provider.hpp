@@ -10,9 +10,9 @@
 #include "service.hpp"
 #include "session.hpp"
 
-#include "llstack/lluuid.hpp"
-#include "llstack/llmessageid.hpp"
-#include "llstack/llmessage.hpp"
+#include "llstack/uuid.hpp"
+#include "llstack/messageid.hpp"
+#include "llstack/message.hpp"
 
 #include <QUrl>
 #include <QUdpSocket>
@@ -197,6 +197,7 @@ namespace Scaffold
 
             private:
                 int get_sequence_num_ ();
+                int send_buffer_ (ByteBuffer *buf);
 
             private:
                 bool            connected_;

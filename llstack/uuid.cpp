@@ -5,7 +5,7 @@
  *  @brief  LLUUID is a 16-byte identifier for resources in a virtual world.
 */
 
-#include "lluuid.hpp"
+#include "llstack/uuid.hpp"
 
 #include <sstream>
 #include <iomanip>

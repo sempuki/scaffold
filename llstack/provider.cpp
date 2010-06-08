@@ -7,7 +7,7 @@
 #include "capabilities.hpp"
 #include "xmlrpc.hpp"
 
-#include "llstack/llprovider.hpp"
+#include "llstack/provider.hpp"
 
 #include <QObject>
 #include <QVariant>
@@ -456,8 +456,7 @@ namespace Scaffold
             m->push (streamparam_.session_id);
             m->push (streamparam_.agent_id);
 
-            ByteBuffer *buf = m->data();
-            udp_.write ((const char *)buf->data, buf->size);
+            send_buffer_ (m->data());
         }
 
         void Stream::SendCompleteAgentMovementPacket ()
@@ -514,6 +513,11 @@ namespace Scaffold
         int Stream::get_sequence_num_ ()
         {
             return sequence_ ++;
+        }
+                
+        int Stream::send_buffer_ (ByteBuffer *buf)
+        {
+            udp_.write ((const char *)buf->data, buf->size);
         }
                 
         //=========================================================================

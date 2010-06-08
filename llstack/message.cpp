@@ -4,7 +4,7 @@
  */
 
 #include "stdheaders.hpp"
-#include "llstack/llmessage.hpp"
+#include "llstack/message.hpp"
 
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/support_istream_iterator.hpp>
