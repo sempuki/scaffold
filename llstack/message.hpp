@@ -86,24 +86,16 @@ namespace Scaffold
         {
             public:
                 typedef std::vector <string> ParamList;
+                typedef void (Listener) (const shared_ptr<Message> &);
+                typedef Subscription <Listener> Signal;
 
                 enum SeekType { Beg, Cur, End };
 
-                Message (shared_ptr <ByteBuffer> d);
-                Message (shared_ptr <ByteBuffer> d, uint32_t id);
+                Message (shared_ptr <ByteBuffer> d, uint32_t id = 0);
                 
                 void seek (size_t pos, SeekType dir = Cur);
 
-                template <typename T> void next () 
-                { 
-                    using std::max;
-
-                    pos_ += sizeof (T); 
-                    end_ = max (pos_, end_); 
-
-                    assert (pos_ <= end_);
-                    assert (end_ <= max_);
-                }
+                template <typename T> void next () { seek (sizeof (T)); }
 
                 template <typename T> void put (T value) { T *ptr = (T *)pos_; *ptr = value; }
                 template <typename T> void putBigEndian (T value) { qToBigEndian <T> (value, pos_); } 
@@ -130,12 +122,13 @@ namespace Scaffold
                 void pushBlock (uint8_t repetitions);
                 void popBlock (uint8_t &repetitions);
 
-                void pushBufferSize (size_t size);
-                void pushBuffer (const std::vector <uint8_t> &buf);
-                void popBuffer1 (std::vector <uint8_t> &buf, uint8_t &size);
-                void popBuffer2 (std::vector <uint8_t> &buf, uint16_t &size);
+                void pushVariableSize (size_t size);
+                void pushVariable (const std::vector <uint8_t> &buf);
+                void popVariable1 (std::vector <uint8_t> &buf, uint8_t &size);
+                void popVariable2 (std::vector <uint8_t> &buf, uint16_t &size);
 
-                ByteBuffer *data () { return data_.get(); }
+                pair <const char*, size_t> sendBuffer () const;
+                pair <char*, size_t> recvBuffer () const;
 
                 void print (std::ostream &out);
 
@@ -177,7 +170,7 @@ namespace Scaffold
                 ~MessageFactory ();
 
             public:
-                auto_ptr <Message> create (uint32_t id, size_t size = 0);
+                auto_ptr <Message> create (uint32_t id = 0, size_t size = 0);
 
             private:
                 ByteBuffer *add_free_buffer_ (size_t size);

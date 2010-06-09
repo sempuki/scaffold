@@ -4,6 +4,7 @@
  */
 
 #include "stdheaders.hpp"
+#include "subscription.hpp"
 #include "llstack/message.hpp"
 
 #include <boost/spirit/include/qi.hpp>
@@ -384,11 +385,6 @@ namespace Scaffold
         //=============================================================================
         // Unchecked message type
 
-        Message::Message (shared_ptr <ByteBuffer> d) : 
-            data_ (d), id_ (0), begin_ (d.get()->data), 
-            pos_ (begin_), end_ (begin_), max_ (begin_ + d->size)
-        {}
-
         Message::Message (shared_ptr <ByteBuffer> d, uint32_t id) : 
             data_ (d), id_ (id), begin_ (d.get()->data), 
             pos_ (begin_), end_ (begin_), max_ (begin_ + d->size)
@@ -415,7 +411,7 @@ namespace Scaffold
         {
             using std::copy;
 
-            pushBufferSize (str.size() + 1); 
+            pushVariableSize (str.size() + 1); 
 
             copy (str.begin(), str.end(), pos_);
             seek (str.size());
@@ -431,6 +427,7 @@ namespace Scaffold
             uint8_t size1; get (size1);
             uint16_t size2; get (size2);
 
+            // null terminated
             if (*(pos_ + size1) == 0)
             {
                 size = size1;
@@ -564,7 +561,7 @@ namespace Scaffold
             pop (repetitions); 
         }
 
-        void Message::pushBufferSize (size_t size)
+        void Message::pushVariableSize (size_t size)
         {
             if (size < 256)
                 pushBigEndian ((uint8_t) size);
@@ -574,17 +571,17 @@ namespace Scaffold
                 pushBigEndian ((uint32_t) size);
         }
 
-        void Message::pushBuffer (const std::vector <uint8_t> &buf)
+        void Message::pushVariable (const std::vector <uint8_t> &buf)
         {
             using std::copy;
 
-            pushBufferSize (buf.size());
+            pushVariableSize (buf.size());
 
             copy (buf.begin(), buf.end(), pos_);
             seek (buf.size());
         }
 
-        void Message::popBuffer1 (std::vector <uint8_t> &buf, uint8_t &size)
+        void Message::popVariable1 (std::vector <uint8_t> &buf, uint8_t &size)
         {
             using std::copy;
 
@@ -595,7 +592,7 @@ namespace Scaffold
             seek (size);
         }
 
-        void Message::popBuffer2 (std::vector <uint8_t> &buf, uint16_t &size)
+        void Message::popVariable2 (std::vector <uint8_t> &buf, uint16_t &size)
         {
             using std::copy;
 
@@ -614,6 +611,17 @@ namespace Scaffold
 
             copy (begin_, end_, ostream_iterator <int> (out << hex, " "));
         }
+
+        pair <const char*, size_t> Message::sendBuffer () const
+        {
+            return make_pair ((const char *)begin_, end_ - begin_);
+        }
+                
+        pair <char*, size_t> Message::recvBuffer () const
+        {
+            return make_pair ((char *)begin_, max_ - begin_);
+        }
+                
 
         //=============================================================================
         // Message factory

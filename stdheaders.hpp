@@ -33,6 +33,7 @@ using std::isfinite;
 using std::string;
 using std::stringstream;
 using std::for_each;
+using std::pair;
 using std::make_pair;
 using std::auto_ptr;
 using std::tr1::shared_ptr;

@@ -4,6 +4,8 @@
  */
 
 #include "stdheaders.hpp"
+#include "subscription.hpp"
+#include "llstack/message.hpp"
 #include "llstack/messageid.hpp"
 
 

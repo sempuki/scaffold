@@ -7,7 +7,6 @@
 #include "application.hpp"
 #include "session.hpp"
 #include "llstack/provider.hpp"
-#include "llstack/message.hpp"
 
 
 //=============================================================================
@@ -38,7 +37,7 @@ struct Logic : public Module
     LLStack::Stream     *stream;
 
     Logic () : 
-        state (0), scheduler (0), session (0), stream (0)
+        state (1), scheduler (0), session (0), stream (0)
     {}
 
     void initialize (Scheduler *s)
@@ -70,60 +69,59 @@ struct Logic : public Module
 
     void on_frame_update (frame_delta_t delta)
     {
-        if (stream)
-            stream->pump();
+        // app logic state machine
 
         switch (state)
         {
             case 0:
-                {
-                    cout << "attempting login" << endl;
-                    state = 1;
-
-                    scheduler->enqueue 
-                        (new Task (bind (&Logic::do_lllogin_test, this, _1)));
-                }
+                // null state
                 break;
 
             case 1:
                 {
-                    if (session) 
-                    {
-                        cout << "got session" << endl;
+                    state = 0;
 
-                        if (session->isConnected() && stream->isConnected())
-                        {
-                            cout << "logged in" << endl;
-
-                            stream->SendUseCircuitCodePacket ();
-                            stream->SendCompleteAgentMovementPacket ();
-                            stream->SendAgentThrottlePacket ();
-                            stream->SendAgentWearablesRequestPacket ();
-                            stream->SendRexStartupPacket ("started"); 
-                        }
-                        else
-                            cout << "login failed" << endl;
-
-                        state = 2;
-                    }
+                    cout << "attempting login" << endl;
+                    scheduler->enqueue (new Task 
+                            (bind (&Logic::do_login, this, _1)));
                 }
                 break;
 
             case 2:
                 {
-                    cout << "quitting" << endl;
-                    state = 3;
+                    state = 0;
 
-                    QApplication::exit();
+                    cout << "begin streaming world" << endl;
+                    scheduler->enqueue (new Task 
+                            (bind (&Logic::do_start_world_stream, this, _1)));
+                }
+                break;
+
+            case 3:
+                {
+                    state = 0;
+
+                    cout << "waiting for world" << endl;
+                    scheduler->enqueue (new Task 
+                            (bind (&Logic::do_read_world_stream, this, _1)));
                 }
                 break;
                 
+            case 4:
+                {
+                    state = 0;
+
+                    cout << "quitting" << endl;
+                    QApplication::exit();
+                }
+                break;
+
             default:
                 break;
         }
     }
     
-    void do_lllogin_test (frame_delta_t delta)
+    void do_login (frame_delta_t delta)
     {
         LoginParameters parms;
         parms.insert ("first", "r");
@@ -142,6 +140,32 @@ struct Logic : public Module
                 session = static_cast <LLStack::Session *> (s);
                 stream = static_cast <LLStack::Stream *> (s->stream ());
             }
+        }
+
+        if (session->isConnected() && stream->isConnected())
+            state = 2;
+        else
+            state = 4;
+    }
+
+    void do_start_world_stream (frame_delta_t delta)
+    {
+        stream->sendUseCircuitCodePacket ();
+        stream->sendCompleteAgentMovementPacket ();
+        stream->sendAgentThrottlePacket ();
+        stream->sendAgentWearablesRequestPacket ();
+        stream->sendRexStartupPacket ("started"); 
+
+        state = 3;
+    }
+
+    void do_read_world_stream (frame_delta_t delta)
+    {
+        if (stream->waitForRead ())
+        {
+            while (stream->hasMessages ());
+
+            state = 4;
         }
     }
 };

@@ -483,6 +483,7 @@ namespace Scaffold
 
         typedef std::map <string, msg_id_t> MessageIDMap;
         typedef std::map <msg_id_t, string> MessageNameMap;
+        typedef std::map <msg_id_t, Message::Signal> MessageSignalMap;
 
         MessageIDMap get_msg_id_map ();
         MessageNameMap get_msg_name_map ();

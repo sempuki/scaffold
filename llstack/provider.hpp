@@ -11,8 +11,8 @@
 #include "session.hpp"
 
 #include "llstack/uuid.hpp"
-#include "llstack/messageid.hpp"
 #include "llstack/message.hpp"
+#include "llstack/messageid.hpp"
 
 #include <QUrl>
 #include <QUdpSocket>
@@ -178,14 +178,21 @@ namespace Scaffold
                 bool connect ();
                 bool disconnect ();
 
-                void pump ();
+                bool hasMessages ();
+                bool waitForConnect ();
+                bool waitForDisconnect ();
+                bool waitForWrite ();
+                bool waitForRead ();
 
-                void SendUseCircuitCodePacket ();
-                void SendCompleteAgentMovementPacket ();
-                void SendAgentThrottlePacket ();
-                void SendAgentWearablesRequestPacket ();
-                void SendRexStartupPacket (const string &state); 
-                void SendGenericMessage (const string &method, const Message::ParamList &parms);
+                void listen (msg_id_t id, Message::Listener listen);
+
+            public:
+                void sendUseCircuitCodePacket ();
+                void sendCompleteAgentMovementPacket ();
+                void sendAgentThrottlePacket ();
+                void sendAgentWearablesRequestPacket ();
+                void sendRexStartupPacket (const string &state); 
+                void sendGenericMessage (const string &method, const Message::ParamList &parms);
 
             protected slots:
                 void on_host_found ();
@@ -198,16 +205,18 @@ namespace Scaffold
 
             private:
                 int get_sequence_num_ ();
-                int send_buffer_ (ByteBuffer *buf);
+                void send_message_ (Message *msg);
+                void recv_message_ (Message *msg);
 
             private:
-                bool            connected_;
-                int             sequence_;
+                bool    connected_;
+                int     sequence_;
 
-                MessageIDMap    idmap_;
-                MessageNameMap  namemap_;
-                MessageFactory  factory_;
-                QUdpSocket      udp_;
+                MessageIDMap        idmap_;
+                MessageNameMap      names_;
+                MessageSignalMap    signals_;
+                MessageFactory      factory_;
+                QUdpSocket          udp_;
 
                 StreamParameters    streamparam_;
                 SessionParameters   sessionparam_;

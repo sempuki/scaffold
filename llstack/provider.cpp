@@ -391,15 +391,18 @@ namespace Scaffold
             Connectivity::Stream ("ll-stream"), 
             sequence_ (1), 
             idmap_ (get_msg_id_map ()),
-            namemap_ (get_msg_name_map ()),
+            names_ (get_msg_name_map ()),
             udp_ (this)
         {
             QObject::connect (&udp_, SIGNAL(hostFound()), this, SLOT(on_host_found()));
             QObject::connect (&udp_, SIGNAL(connected()), this, SLOT(on_connected()));
+            QObject::connect (&udp_, SIGNAL(disconnected()), this, SLOT(on_disconnected()));
+            QObject::connect (&udp_, SIGNAL(bytesWritten(qint64)), this, SLOT(on_bytes_written(qint64)));
+            QObject::connect (&udp_, SIGNAL(readyRead()), this, SLOT(on_ready_read()));
+            QObject::connect (&udp_, SIGNAL(stateChanged(QAbstractSocket::SocketState)), 
+                    this, SLOT(on_state_changed(QAbstractSocket::SocketState)));
             QObject::connect (&udp_, SIGNAL(error(QAbstractSocket::SocketError)), 
                     this, SLOT(on_error(QAbstractSocket::SocketError)));
-
-            QObject::connect (&udp_, SIGNAL(readyRead()), this, SLOT(on_ready_read()));
         }
 
         Stream::~Stream ()
@@ -441,11 +444,40 @@ namespace Scaffold
             return connected_;
         }
 
-        void Stream::pump ()
+        bool Stream::hasMessages ()
         {
+            return udp_.hasPendingDatagrams ();
         }
-                
-        void Stream::SendUseCircuitCodePacket ()
+
+        bool Stream::waitForConnect ()
+        {
+            return udp_.waitForConnected ();
+        }
+
+        bool Stream::waitForDisconnect ()
+        {
+            return udp_.waitForDisconnected ();
+        }
+
+        bool Stream::waitForWrite ()
+        {
+            return udp_.waitForBytesWritten ();
+        }
+
+        bool Stream::waitForRead ()
+        {
+            return udp_.waitForReadyRead ();
+        }
+        
+        void Stream::listen (msg_id_t id, Message::Listener listen)
+        {
+            if (!signals_.count (id))
+                signals_.insert (make_pair (id, Message::Signal ()));
+
+            signals_[id] += listen;
+        }
+
+        void Stream::sendUseCircuitCodePacket ()
         {
             auto_ptr <Message> m = factory_.create (UseCircuitCode);
 
@@ -456,10 +488,10 @@ namespace Scaffold
             m->push (streamparam_.session_id);
             m->push (streamparam_.agent_id);
 
-            send_buffer_ (m->data());
+            send_message_ (m.get());
         }
 
-        void Stream::SendCompleteAgentMovementPacket ()
+        void Stream::sendCompleteAgentMovementPacket ()
         {
             auto_ptr <Message> m = factory_.create (CompleteAgentMovement);
 
@@ -470,10 +502,10 @@ namespace Scaffold
             m->push (streamparam_.session_id);
             m->push (streamparam_.circuit_code);
 
-            send_buffer_ (m->data());
+            send_message_ (m.get());
         }
 
-        void Stream::SendAgentThrottlePacket ()
+        void Stream::sendAgentThrottlePacket ()
         {
             auto_ptr <Message> m = factory_.create (AgentThrottle);
 
@@ -486,7 +518,7 @@ namespace Scaffold
 
             m->push <uint32_t> (0); // generation counter
 
-            m->pushBufferSize (7);
+            m->pushVariableSize (7);
             m->push (MAX_BPS * 0.1f);  // resend
             m->push (MAX_BPS * 0.1f);  // land
             m->push (MAX_BPS * 0.02f); // wind
@@ -495,10 +527,10 @@ namespace Scaffold
             m->push (MAX_BPS * 0.26f); // texture
             m->push (MAX_BPS * 0.25f); // asset
             
-            send_buffer_ (m->data());
+            send_message_ (m.get());
         }
 
-        void Stream::SendAgentWearablesRequestPacket ()
+        void Stream::sendAgentWearablesRequestPacket ()
         {
             auto_ptr <Message> m = factory_.create (AgentWearablesRequest);
 
@@ -508,20 +540,20 @@ namespace Scaffold
             m->push (streamparam_.agent_id);
             m->push (streamparam_.session_id);
 
-            send_buffer_ (m->data());
+            send_message_ (m.get());
         }
 
-        void Stream::SendRexStartupPacket (const string &state)
+        void Stream::sendRexStartupPacket (const string &state)
         {
             Message::ParamList param;
 
             param.push_back (streamparam_.agent_id);
             param.push_back (state);
 
-            SendGenericMessage ("RexStartup", param);
+            sendGenericMessage ("RexStartup", param);
         }
 
-        void Stream::SendGenericMessage (const string &method, const Message::ParamList &param)
+        void Stream::sendGenericMessage (const string &method, const Message::ParamList &param)
         {
             auto_ptr <Message> m = factory_.create (GenericMessage);
 
@@ -539,7 +571,7 @@ namespace Scaffold
             for_each (param.begin(), param.end(), 
                     bind (&Message::push <string>, m.get(), _1));
 
-            send_buffer_ (m->data());
+            send_message_ (m.get());
         }
 
         void Stream::on_host_found ()
@@ -560,6 +592,12 @@ namespace Scaffold
         void Stream::on_ready_read ()
         {
             cout << "ready for reading" << endl;
+
+            while (udp_.hasPendingDatagrams ())
+            {
+                auto_ptr <Message> m = factory_.create ();
+                recv_message_ (m.get());
+            }
         }
 
         void Stream::on_bytes_written (qint64 bytes)
@@ -582,11 +620,30 @@ namespace Scaffold
             return sequence_ ++;
         }
                 
-        int Stream::send_buffer_ (ByteBuffer *buf)
+        void Stream::send_message_ (Message *msg)
         {
-            udp_.write ((const char *)buf->data, buf->size);
+            // TODO: do ACKing
+
+            pair <const char *, size_t> buf = msg->sendBuffer ();
+            udp_.write (buf.first, buf.second);
         }
                 
+        void Stream::recv_message_ (Message *msg)
+        {
+            // TODO: do ACKing
+
+            pair <char *, size_t> buf = msg->recvBuffer ();
+            qint64 size = udp_.readDatagram (buf.first, buf.second);
+
+            if (size > 6)
+            {
+                uint8_t flags; uint32_t seq; uint8_t extra;
+                msg->popHeader (flags, seq, extra);
+                msg->seek (0, Message::Beg);
+
+                cout << "recv: " << hex << flags << " " << seq << endl;
+            }
+        }
         //=========================================================================
         // LLSession
 

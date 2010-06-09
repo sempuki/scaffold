@@ -20,7 +20,13 @@ namespace Scaffold
                 virtual bool connect () = 0;
                 virtual bool disconnect () = 0;
 
-                virtual void pump () = 0;
+                virtual bool hasMessages () = 0;
+                virtual bool waitForConnect () = 0;
+                virtual bool waitForDisconnect () = 0;
+                virtual bool waitForWrite () = 0;
+                virtual bool waitForRead () = 0;
+                
+                virtual void pump () {}
         };
 
         class Session : public Tagged
