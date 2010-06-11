@@ -1,0 +1,17 @@
+Scaffold is a simple, experimental framework for a game/virtual world client. The design tries to acheive high level of customizability while following best practice found in many contemporary game/VW systems.
+
+More detail can be found here: http://wiki.realxtend.org/index.php/Project_Scaffold_Design_Goals
+
+Currently Implemented
+=======================================
+* basic scene-centric data model based on Entities and Components with publish/subscribe semantics
+* basic plug-in asynchronous service abstraction for modular addition of features
+* basic application framework, including per-frame heartbeat and task scheduling
+* basic network abstraction hiding the SecondLife(tm) protocol details 
+* basic login and initiation of world streaming
+
+Further Requirements
+=======================================
+* decode and cache world assets
+* integrate Ogre3D and display assets with world updates
+* integrate Qt-based UI
