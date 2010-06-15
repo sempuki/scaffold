@@ -10,6 +10,7 @@
 #include <cmath>
 
 #include <ios>
+#include <iomanip>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -41,6 +42,7 @@ using std::tr1::function;
 using std::tr1::bind;
 using std::tr1::mem_fn;
 using std::cout;
+using std::cerr;
 using std::endl;
         
 using namespace std::tr1::placeholders;
@@ -60,8 +62,8 @@ struct rvalue
     typedef typename rvalue_helper <T,std::tr1::is_fundamental<T>::value>::type type;
 };
 
-template <typename T> void safe_delete (T* ptr) { delete ptr; ptr = 0; }
-template <typename T> void safe_array_delete (T* ptr) { delete [] ptr; ptr = 0; }
+template <typename T> void safe_delete (T* &ptr) { delete ptr; ptr = 0; }
+template <typename T> void safe_array_delete (T* &ptr) { delete [] ptr; ptr = 0; }
 
 struct Locker
 {

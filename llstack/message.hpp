@@ -17,6 +17,7 @@ namespace Scaffold
         const float MAX_BPS (1000000.0f);
         const size_t MAX_MESSAGE_SIZE (2048);
         const size_t MESSAGE_POOL_SIZE (16);
+        const size_t MESSAGE_HEADER_SIZE (6);
         const uint8_t ZERO_CODE_FLAG (0x80);
         const uint8_t RELIABLE_FLAG (0x40);
         const uint8_t RESENT_FLAG (0x20);
@@ -75,24 +76,34 @@ namespace Scaffold
 
             size_t  size;
             uint8_t *data;
-        
+
             ByteBuffer (size_t s) : size (s), data (new uint8_t [s]) {}
             void dispose () { delete [] data; }
-            
+
             bool operator< (const ByteBuffer &r) { return size < r.size; }
         };
 
         class Message 
         {
             public:
-                typedef std::vector <string> ParamList;
-                typedef void (Listener) (const shared_ptr<Message> &);
+                typedef void (Listener) (Message);
                 typedef Subscription <Listener> Signal;
+                typedef std::map <msg_id_t, Signal> SignalMap;
+                typedef std::vector <string> ParamList;
 
                 enum SeekType { Beg, Cur, End };
 
-                Message (shared_ptr <ByteBuffer> d, uint32_t id = 0);
-                
+                Message (shared_ptr <ByteBuffer> d, uint32_t id = 0, uint32_t seq = 0, uint8_t flags = 0);
+
+                uint32_t getID () const;
+                uint32_t getSequence () const;
+                uint8_t getFlags () const;
+                int priority () const;
+
+                void setID (uint32_t id);
+                void setSequenceNumber (uint32_t seq);
+                void setFlags (uint8_t flags);
+
                 void seek (size_t pos, SeekType dir = Cur);
 
                 template <typename T> void next () { seek (sizeof (T)); }
@@ -113,11 +124,8 @@ namespace Scaffold
                 template <typename T> void popBigEndian (T& value) { getBigEndian (value); next <T> (); }
                 template <typename T> void popLittleEndian (T& value) { getLittleEndian (value); next <T> (); }
 
-                void pushHeader (uint8_t flags, uint32_t seq, uint8_t extra = 0);
-                void popHeader (uint8_t &flags, uint32_t &seq, uint8_t &extra);
-
-                void pushMsgID (int priority, uint32_t id);
-                void popMsgID (int &priority, uint32_t &id);
+                void pushHeader ();
+                void popHeader ();
 
                 void pushBlock (uint8_t repetitions);
                 void popBlock (uint8_t &repetitions);
@@ -133,9 +141,18 @@ namespace Scaffold
                 void print (std::ostream &out);
 
             private:
+                int get_priority_ (uint32_t id);
+                void push_msg_id_ ();
+                void pop_msg_id_ ();
+
+            private:
                 shared_ptr <ByteBuffer> data_;
 
                 uint32_t    id_;
+                uint32_t    seq_;
+                int         priority_;
+                uint8_t     flags_;
+
                 uint8_t     *begin_;
                 uint8_t     *pos_;
                 uint8_t     *end_;
@@ -162,7 +179,7 @@ namespace Scaffold
                 bool            run_;
                 std::ifstream   file_;
         };
-        
+
         class MessageFactory
         {
             public:
@@ -170,7 +187,7 @@ namespace Scaffold
                 ~MessageFactory ();
 
             public:
-                auto_ptr <Message> create (uint32_t id = 0, size_t size = 0);
+                Message create (uint32_t id = 0, uint8_t flags = 0, size_t size = 0);
 
             private:
                 ByteBuffer *add_free_buffer_ (size_t size);
@@ -181,7 +198,8 @@ namespace Scaffold
                 void set_used_buffer_ (ByteBuffer *buf);
 
             private:
-                bool    error_;
+                bool        error_;
+                uint32_t    sequence_;
 
                 PacketInfo          info_;
                 MessageParser       parser_;

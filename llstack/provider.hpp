@@ -204,19 +204,20 @@ namespace Scaffold
                 void on_error (QAbstractSocket::SocketError);
 
             private:
-                int get_sequence_num_ ();
-                void send_message_ (Message *msg);
-                void recv_message_ (Message *msg);
+                void send_message_ (Message msg);
+                void recv_message_ (Message msg);
 
             private:
                 bool    connected_;
-                int     sequence_;
 
-                MessageIDMap        idmap_;
                 MessageNameMap      names_;
-                MessageSignalMap    signals_;
+                MessageIDMap        idmap_;
+                MessageIDSet        waiting_;
+
                 MessageFactory      factory_;
                 QUdpSocket          udp_;
+
+                Message::SignalMap  signals_;
 
                 StreamParameters    streamparam_;
                 SessionParameters   sessionparam_;

@@ -481,9 +481,9 @@ namespace Scaffold
         const msg_id_t OpenCircuit                              = 0xfffffffc;
         const msg_id_t CloseCircuit                             = 0xfffffffd;
 
+        typedef std::set <msg_id_t> MessageIDSet;
         typedef std::map <string, msg_id_t> MessageIDMap;
         typedef std::map <msg_id_t, string> MessageNameMap;
-        typedef std::map <msg_id_t, Message::Signal> MessageSignalMap;
 
         MessageIDMap get_msg_id_map ();
         MessageNameMap get_msg_name_map ();

@@ -385,10 +385,27 @@ namespace Scaffold
         //=============================================================================
         // Unchecked message type
 
-        Message::Message (shared_ptr <ByteBuffer> d, uint32_t id) : 
-            data_ (d), id_ (id), begin_ (d.get()->data), 
-            pos_ (begin_), end_ (begin_), max_ (begin_ + d->size)
-        {}
+        Message::Message (shared_ptr <ByteBuffer> d, uint32_t id, uint32_t seq, uint8_t flags) : 
+            data_ (d), 
+            id_ (id), 
+            seq_ (seq), 
+            priority_ (get_priority_ (id_)),
+            flags_ (flags),
+            begin_ (d->data), 
+            pos_ (begin_), 
+            end_ (begin_), 
+            max_ (begin_ + d->size)
+        {
+        }
+
+        uint32_t Message::getID () const { return id_; }
+        uint32_t Message::getSequence () const { return seq_; }
+        uint8_t Message::getFlags () const { return flags_; }
+        int Message::priority () const { return priority_; }
+
+        void Message::setID (uint32_t id) { id_ = id; priority_ = get_priority_ (id); }
+        void Message::setSequenceNumber (uint32_t seq) { seq_ = seq; }
+        void Message::setFlags (uint8_t flags) { flags_ = flags; }
 
         void Message::seek (size_t pos, SeekType dir)
         {
@@ -479,76 +496,26 @@ namespace Scaffold
             value = result;
         }
 
-        void Message::pushHeader (uint8_t flags, uint32_t seq, uint8_t extra)
+        void Message::pushHeader ()
         {
-            push (flags);
-            pushBigEndian (seq);
+            uint8_t extra (0);
+
+            push (flags_);
+            pushBigEndian (seq_);
             push (extra);
+
+            push_msg_id_ ();
         }
 
-        void Message::popHeader (uint8_t &flags, uint32_t &seq, uint8_t &extra)
+        void Message::popHeader ()
         {
-            pop (flags);
-            popBigEndian (seq);
+            uint8_t extra;
+
+            pop (flags_);
+            popBigEndian (seq_);
             pop (extra);
-        }
 
-        void Message::pushMsgID (int priority, uint32_t id)
-        {
-            switch (priority)
-            {
-                case PacketInfo::HIGH: 
-                    pushBigEndian <uint8_t> (id);
-                    break;
-
-                case PacketInfo::MEDIUM: 
-                    pushBigEndian <uint16_t> (id | 0x0000FF00);
-                    break;
-
-                case PacketInfo::LOW: 
-                    pushBigEndian <uint32_t> (id | 0xFFFF0000);
-                    break;
-
-                case PacketInfo::FIXED: 
-                    pushBigEndian <uint32_t> (id);
-                    break;
-            }
-        }
-
-        void Message::popMsgID (int &priority, uint32_t &id)
-        {
-            uint32_t quad; getBigEndian (quad);
-
-            if ((quad & 0xFF000000) == 0xFF000000)
-            {
-                if ((quad & 0xFFFF0000) == 0xFFFF0000)
-                {
-                    if ((quad & 0xFFFFFF00) == 0xFFFFFF00)
-                    {
-                        id = quad & 0xFFFFFFFF;
-                        priority = PacketInfo::FIXED;
-                        next <uint32_t> ();
-                    }
-                    else
-                    {
-                        id = quad & 0x0000FFFF;
-                        priority = PacketInfo::LOW;
-                        next <uint32_t> ();
-                    }
-                }
-                else
-                {
-                    id = quad & 0x00FF0000;
-                    priority = PacketInfo::MEDIUM;
-                    next <uint16_t> ();
-                }
-            }
-            else
-            {
-                id = quad & 0xFF000000;
-                priority = PacketInfo::HIGH;
-                next <uint8_t> ();
-            }
+            pop_msg_id_ ();
         }
 
         void Message::pushBlock (uint8_t repetitions) 
@@ -622,19 +589,98 @@ namespace Scaffold
             return make_pair ((char *)begin_, max_ - begin_);
         }
                 
+        int Message::get_priority_ (uint32_t id)
+        {
+            if (id == 0)
+                return PacketInfo::ERROR;
+            else if (id < 0xff00)
+                return PacketInfo::HIGH;
+            else if (id < 0xffff0000)
+                return PacketInfo::MEDIUM;
+            else if (id < 0xffffff00)
+                return PacketInfo::LOW;
+            else
+                return PacketInfo::FIXED;
+        }
+
+        void Message::push_msg_id_ ()
+        {
+            switch (priority_)
+            {
+                case PacketInfo::HIGH: 
+                    pushBigEndian <uint8_t> (id_);
+                    break;
+
+                case PacketInfo::MEDIUM: 
+                    pushBigEndian <uint16_t> (id_ | 0x0000FF00);
+                    break;
+
+                case PacketInfo::LOW: 
+                    pushBigEndian <uint32_t> (id_ | 0xFFFF0000);
+                    break;
+
+                case PacketInfo::FIXED: 
+                    pushBigEndian <uint32_t> (id_);
+                    break;
+
+                case PacketInfo::ERROR:
+                    cerr << "bad priority!" << endl;
+                    break;
+            }
+        }
+
+        void Message::pop_msg_id_ ()
+        {
+            uint32_t quad; getBigEndian (quad);
+
+            if ((quad & 0xFF000000) == 0xFF000000)
+            {
+                if ((quad & 0xFFFF0000) == 0xFFFF0000)
+                {
+                    if ((quad & 0xFFFFFF00) == 0xFFFFFF00)
+                    {
+                        id_ = quad & 0xFFFFFFFF;
+                        priority_ = PacketInfo::FIXED;
+                        next <uint32_t> ();
+                    }
+                    else
+                    {
+                        id_ = quad & 0x0000FFFF;
+                        priority_ = PacketInfo::LOW;
+                        next <uint32_t> ();
+                    }
+                }
+                else
+                {
+                    id_ = quad & 0x00FF0000;
+                    priority_ = PacketInfo::MEDIUM;
+                    next <uint16_t> ();
+                }
+            }
+            else
+            {
+                id_ = quad & 0xFF000000;
+                priority_ = PacketInfo::HIGH;
+                next <uint8_t> ();
+            }
+        }
 
         //=============================================================================
         // Message factory
 
         MessageFactory::MessageFactory () : 
-            error_ (false), parser_ ("message_template.msg")
+            error_ (false), 
+            sequence_ (1),
+            parser_ ("message_template.msg")
         {
+            using std::make_heap;
+
             error_ = parser_.parse (info_);
 
             for (int i=0; i < MESSAGE_POOL_SIZE; ++i)
                 free_.push_back (new ByteBuffer (MAX_MESSAGE_SIZE));
 
-            std::make_heap (free_.begin(), free_.end());
+            make_heap (free_.begin(), free_.end());
         }
 
         MessageFactory::~MessageFactory ()
@@ -643,7 +689,7 @@ namespace Scaffold
             for_each (used_.begin(), used_.end(), mem_fn (&ByteBuffer::dispose));
         }
 
-        auto_ptr <Message> MessageFactory::create (uint32_t id, size_t size)
+        Message MessageFactory::create (uint32_t id, uint8_t flags, size_t size)
         {
             if (size == 0)
                 size = MAX_MESSAGE_SIZE;
@@ -655,12 +701,10 @@ namespace Scaffold
 
             shared_ptr <ByteBuffer> ptr 
                 (buf, bind (&MessageFactory::set_free_buffer_, this, _1));
-
-            auto_ptr <Message> msg (new Message (ptr, id));
-
+            
             set_used_buffer_ (buf);
 
-            return msg;
+            return Message (ptr, id, sequence_++, flags);
         }
 
         ByteBuffer *MessageFactory::next_free_buffer_ ()

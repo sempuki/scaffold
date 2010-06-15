@@ -27,6 +27,7 @@
 #include <QNetworkRequest>
 #include <QXmlStreamReader>
 
+#include <iostream>
 
 namespace Scaffold
 {
@@ -189,7 +190,8 @@ namespace Scaffold
                 {
                     int step = 0;
 
-                    QXmlStreamReader xml(reply->readAll());
+                    QByteArray data (reply->readAll());
+                    QXmlStreamReader xml(data);
                     while (!xml.atEnd())
                     {
                         xml.readNext();
@@ -255,7 +257,6 @@ namespace Scaffold
 
             QVariant deserialize (QXmlStreamReader &xml)
             {
-                QVariant result;
                 while (!xml.atEnd())
                 {
                     xml.readNext();
@@ -284,10 +285,10 @@ namespace Scaffold
 
                         else if (xml.name().toString() == "struct")
                             return deserialize_struct(xml);
-
-                        else
-                            result = QVariant();
                     }
+
+                    else if (xml.isEndElement())
+                        break;
                 }
 
                 return QVariant();

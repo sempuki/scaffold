@@ -160,11 +160,7 @@ namespace Scaffold
 
             params.circuit_code = m["circuit_code"].toInt();
             params.agent_id.fromString (m["agent_id"].toString().toStdString());
-
-            //;if (!m["session_id"].toString().isNull())
             params.session_id.fromString (m["session_id"].toString().toStdString());
-            //else
-            //    params.session_id.fromString (m["secure_session_id"].toString().toStdString());
 
             return params;
         }
@@ -389,7 +385,6 @@ namespace Scaffold
 
         Stream::Stream () : 
             Connectivity::Stream ("ll-stream"), 
-            sequence_ (1), 
             idmap_ (get_msg_id_map ()),
             names_ (get_msg_name_map ()),
             udp_ (this)
@@ -479,68 +474,64 @@ namespace Scaffold
 
         void Stream::sendUseCircuitCodePacket ()
         {
-            auto_ptr <Message> m = factory_.create (UseCircuitCode);
+            Message m (factory_.create (UseCircuitCode, RELIABLE_FLAG));
 
-            m->pushHeader (RELIABLE_FLAG, get_sequence_num_());
-            m->pushMsgID (PacketInfo::LOW, 3);
+            m.pushHeader ();
             
-            m->push (streamparam_.circuit_code);
-            m->push (streamparam_.session_id);
-            m->push (streamparam_.agent_id);
+            m.push (streamparam_.circuit_code);
+            m.push (streamparam_.session_id);
+            m.push (streamparam_.agent_id);
 
-            send_message_ (m.get());
+            send_message_ (m);
         }
 
         void Stream::sendCompleteAgentMovementPacket ()
         {
-            auto_ptr <Message> m = factory_.create (CompleteAgentMovement);
+            Message m (factory_.create (CompleteAgentMovement, RELIABLE_FLAG));
 
-            m->pushHeader (RELIABLE_FLAG, get_sequence_num_());
-            m->pushMsgID (PacketInfo::LOW, 249);
+            m.pushHeader ();
             
-            m->push (streamparam_.agent_id);
-            m->push (streamparam_.session_id);
-            m->push (streamparam_.circuit_code);
+            m.push (streamparam_.agent_id);
+            m.push (streamparam_.session_id);
+            m.push (streamparam_.circuit_code);
 
-            send_message_ (m.get());
+            send_message_ (m);
         }
 
         void Stream::sendAgentThrottlePacket ()
         {
-            auto_ptr <Message> m = factory_.create (AgentThrottle);
+            Message m (factory_.create (AgentThrottle, RELIABLE_FLAG | ZERO_CODE_FLAG));
 
-            m->pushHeader (RELIABLE_FLAG | ZERO_CODE_FLAG, get_sequence_num_());
-            m->pushMsgID (PacketInfo::LOW, 81);
+            m.pushHeader ();
 
-            m->push (streamparam_.agent_id);
-            m->push (streamparam_.session_id);
-            m->push (streamparam_.circuit_code);
+            m.push (streamparam_.agent_id);
+            m.push (streamparam_.session_id);
+            m.push (streamparam_.circuit_code);
 
-            m->push <uint32_t> (0); // generation counter
+            m.push <uint32_t> (0); // generation counter
 
-            m->pushVariableSize (7);
-            m->push (MAX_BPS * 0.1f);  // resend
-            m->push (MAX_BPS * 0.1f);  // land
-            m->push (MAX_BPS * 0.02f); // wind
-            m->push (MAX_BPS * 0.02f); // cloud
-            m->push (MAX_BPS * 0.25f); // task
-            m->push (MAX_BPS * 0.26f); // texture
-            m->push (MAX_BPS * 0.25f); // asset
+            m.pushVariableSize (7);
+            m.push (MAX_BPS * 0.1f);  // resend
+            m.push (MAX_BPS * 0.1f);  // land
+            m.push (MAX_BPS * 0.02f); // wind
+            m.push (MAX_BPS * 0.02f); // cloud
+            m.push (MAX_BPS * 0.25f); // task
+            m.push (MAX_BPS * 0.26f); // texture
+            m.push (MAX_BPS * 0.25f); // asset
             
-            send_message_ (m.get());
+            send_message_ (m);
         }
 
         void Stream::sendAgentWearablesRequestPacket ()
         {
-            auto_ptr <Message> m = factory_.create (AgentWearablesRequest);
+            Message m (factory_.create (AgentWearablesRequest, RELIABLE_FLAG));
 
-            m->pushHeader (RELIABLE_FLAG, get_sequence_num_());
-            m->pushMsgID (PacketInfo::LOW, 381);
+            m.pushHeader ();
             
-            m->push (streamparam_.agent_id);
-            m->push (streamparam_.session_id);
+            m.push (streamparam_.agent_id);
+            m.push (streamparam_.session_id);
 
-            send_message_ (m.get());
+            send_message_ (m);
         }
 
         void Stream::sendRexStartupPacket (const string &state)
@@ -555,23 +546,22 @@ namespace Scaffold
 
         void Stream::sendGenericMessage (const string &method, const Message::ParamList &param)
         {
-            auto_ptr <Message> m = factory_.create (GenericMessage);
+            Message m (factory_.create (GenericMessage, RELIABLE_FLAG | ZERO_CODE_FLAG));
 
-            m->pushHeader (RELIABLE_FLAG | ZERO_CODE_FLAG, get_sequence_num_());
-            m->pushMsgID (PacketInfo::LOW, 261);
+            m.pushHeader ();
             
-            m->push (streamparam_.agent_id);
-            m->push (streamparam_.session_id);
-            m->push (UUID::random ()); // TransactionID
+            m.push (streamparam_.agent_id);
+            m.push (streamparam_.session_id);
+            m.push (UUID::random ()); // TransactionID
 
-            m->push (method);
-            m->push (UUID::random ()); // InvoiceID
+            m.push (method);
+            m.push (UUID::random ()); // InvoiceID
 
-            m->pushBlock (param.size());
+            m.pushBlock (param.size());
             for_each (param.begin(), param.end(), 
-                    bind (&Message::push <string>, m.get(), _1));
+                    bind (&Message::push <string>, &m, _1));
 
-            send_message_ (m.get());
+            send_message_ (m);
         }
 
         void Stream::on_host_found ()
@@ -595,8 +585,8 @@ namespace Scaffold
 
             while (udp_.hasPendingDatagrams ())
             {
-                auto_ptr <Message> m = factory_.create ();
-                recv_message_ (m.get());
+                Message m (factory_.create ());
+                recv_message_ (m);
             }
         }
 
@@ -615,35 +605,48 @@ namespace Scaffold
             cout << "udp error: " << err << endl;
         }
                 
-        int Stream::get_sequence_num_ ()
+        void Stream::send_message_ (Message m)
         {
-            return sequence_ ++;
-        }
-                
-        void Stream::send_message_ (Message *msg)
-        {
-            // TODO: do ACKing
+            if (m.getFlags() & RELIABLE_FLAG)
+                // wait for ack for this packet
+                waiting_.insert (m.getSequence());
 
-            pair <const char *, size_t> buf = msg->sendBuffer ();
+            pair <const char *, size_t> buf = m.sendBuffer ();
             udp_.write (buf.first, buf.second);
         }
                 
-        void Stream::recv_message_ (Message *msg)
+        void Stream::recv_message_ (Message m)
         {
-            // TODO: do ACKing
-
-            pair <char *, size_t> buf = msg->recvBuffer ();
+            pair <char *, size_t> buf = m.recvBuffer ();
             qint64 size = udp_.readDatagram (buf.first, buf.second);
 
-            if (size > 6)
+            if (size > MESSAGE_HEADER_SIZE)
             {
-                uint8_t flags; uint32_t seq; uint8_t extra;
-                msg->popHeader (flags, seq, extra);
-                msg->seek (0, Message::Beg);
+                m.popHeader ();
+                msg_id_t id = m.getID();
 
-                cout << "recv: " << hex << flags << " " << seq << endl;
+                if (id == PacketAck)
+                {
+                    uint32_t seq;
+                    uint8_t blocks;
+
+                    m.pop (blocks);
+                    for (int i=0; i < blocks; ++i)
+                    {
+                        m.pop (seq);
+
+                        // stop waiting for acked packets
+                        waiting_.erase (seq);
+                    }
+                }
+                else
+                    // notify listeners
+                    signals_[id] (m);
             }
+
+            m.seek (0, Message::Beg);
         }
+
         //=========================================================================
         // LLSession
 
@@ -762,7 +765,7 @@ namespace Scaffold
         Connectivity::Session *SessionProvider::establish_session_blocking_ ()
         { 
             // wait for connection
-            timeout_ = false; startTimer (1000);
+            timeout_ = false; startTimer (5000);
             while (!session_.isConnected () && !timeout_);
 
             return session ();
