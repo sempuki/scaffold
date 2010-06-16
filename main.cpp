@@ -124,15 +124,15 @@ struct Logic : public Module
     void do_login (frame_delta_t delta)
     {
         LoginParameters parms;
-        parms.insert ("first", "Test");
-        parms.insert ("last", "User");
-        parms.insert ("pass", "test");
-        //parms.insert ("first", "r");
-        //parms.insert ("last", "r");
-        //parms.insert ("pass", "r");
-        //parms.insert ("service", "http://localhost:8002");
+        //parms.insert ("first", "Test");
+        //parms.insert ("last", "User");
+        //parms.insert ("pass", "test");
+        parms.insert ("first", "d");
+        parms.insert ("last", "d");
+        parms.insert ("pass", "d");
+        parms.insert ("service", "http://localhost:8002");
         //parms.insert ("service", "http://home.hulkko.net:9007");
-        parms.insert ("service", "http://world.realxtend.org:9000");
+        //parms.insert ("service", "http://world.realxtend.org:9000");
         
         QFuture <Session *> login = service_session_manager->retire (parms);
 

@@ -15,9 +15,9 @@ namespace Scaffold
 {
     namespace LLStack 
     {
-        MessageIDMap get_msg_id_map ()
+        std::map <string, uint32_t> get_msg_id_map ()
         {
-            MessageIDMap map;
+            std::map <string, uint32_t> map;
 
             map.insert (make_pair ("StartPingCheck", StartPingCheck));
             map.insert (make_pair ("CompletePingCheck", CompletePingCheck));
@@ -498,9 +498,9 @@ namespace Scaffold
             return map;
         }
 
-        MessageNameMap get_msg_name_map ()
+        std::map <uint32_t, string> get_msg_name_map ()
         {
-            MessageNameMap map;
+            std::map <uint32_t, string> map;
 
             map.insert (make_pair (StartPingCheck, "StartPingCheck"));
             map.insert (make_pair (CompletePingCheck, "CompletePingCheck"));

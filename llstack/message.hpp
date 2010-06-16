@@ -16,8 +16,10 @@ namespace Scaffold
     {
         const float MAX_BPS (1000000.0f);
         const size_t MAX_MESSAGE_SIZE (2048);
+        const size_t MESSAGE_WINDOW (256);
         const size_t MESSAGE_POOL_SIZE (16);
         const size_t MESSAGE_HEADER_SIZE (6);
+        const size_t MESSAGE_EXTRA_HEADER (5);
         const uint8_t ZERO_CODE_FLAG (0x80);
         const uint8_t RELIABLE_FLAG (0x40);
         const uint8_t RESENT_FLAG (0x20);
@@ -88,17 +90,26 @@ namespace Scaffold
             public:
                 typedef void (Listener) (Message);
                 typedef Subscription <Listener> Signal;
-                typedef std::map <msg_id_t, Signal> SignalMap;
-                typedef std::vector <string> ParamList;
+                typedef std::map <msg_id_t, Signal> SubscriptionMap;
+
+                typedef std::vector <string> GenericParams;
+
+                typedef std::map <uint32_t, string> NameMap;
+                typedef std::map <string, uint32_t> IDMap;
+                typedef std::set <uint32_t> SequenceSet;
 
                 enum SeekType { Beg, Cur, End };
 
-                Message (shared_ptr <ByteBuffer> d, uint32_t id = 0, uint32_t seq = 0, uint8_t flags = 0);
+                Message (shared_ptr <ByteBuffer> d, uint32_t id = 0, uint8_t flags = 0, uint32_t seq = 0);
 
                 uint32_t getID () const;
                 uint32_t getSequence () const;
                 uint8_t getFlags () const;
                 int priority () const;
+
+                size_t size () const;
+                size_t headerSize () const;
+                size_t bodySize () const;
 
                 void setID (uint32_t id);
                 void setSequenceNumber (uint32_t seq);
@@ -199,7 +210,6 @@ namespace Scaffold
 
             private:
                 bool        error_;
-                uint32_t    sequence_;
 
                 PacketInfo          info_;
                 MessageParser       parser_;

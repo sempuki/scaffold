@@ -8,6 +8,7 @@
 #include "xmlrpc.hpp"
 
 #include "llstack/provider.hpp"
+#include "llstack/zerocode.h"
 
 #include <QObject>
 #include <QVariant>
@@ -385,6 +386,8 @@ namespace Scaffold
 
         Stream::Stream () : 
             Connectivity::Stream ("ll-stream"), 
+            send_sequence_ (1),
+            recv_sequence_ (0),
             idmap_ (get_msg_id_map ()),
             names_ (get_msg_name_map ()),
             udp_ (this)
@@ -466,16 +469,17 @@ namespace Scaffold
         
         void Stream::listen (msg_id_t id, Message::Listener listen)
         {
-            if (!signals_.count (id))
-                signals_.insert (make_pair (id, Message::Signal ()));
+            if (!subscribers_.count (id))
+                subscribers_.insert (make_pair (id, Message::Signal ()));
 
-            signals_[id] += listen;
+            subscribers_[id] += listen;
         }
 
         void Stream::sendUseCircuitCodePacket ()
         {
             Message m (factory_.create (UseCircuitCode, RELIABLE_FLAG));
 
+            m.setSequenceNumber (send_sequence_++);
             m.pushHeader ();
             
             m.push (streamparam_.circuit_code);
@@ -489,6 +493,7 @@ namespace Scaffold
         {
             Message m (factory_.create (CompleteAgentMovement, RELIABLE_FLAG));
 
+            m.setSequenceNumber (send_sequence_++);
             m.pushHeader ();
             
             m.push (streamparam_.agent_id);
@@ -502,6 +507,7 @@ namespace Scaffold
         {
             Message m (factory_.create (AgentThrottle, RELIABLE_FLAG | ZERO_CODE_FLAG));
 
+            m.setSequenceNumber (send_sequence_++);
             m.pushHeader ();
 
             m.push (streamparam_.agent_id);
@@ -510,7 +516,7 @@ namespace Scaffold
 
             m.push <uint32_t> (0); // generation counter
 
-            m.pushVariableSize (7);
+            m.pushVariableSize (7 * sizeof(float));
             m.push (MAX_BPS * 0.1f);  // resend
             m.push (MAX_BPS * 0.1f);  // land
             m.push (MAX_BPS * 0.02f); // wind
@@ -526,6 +532,7 @@ namespace Scaffold
         {
             Message m (factory_.create (AgentWearablesRequest, RELIABLE_FLAG));
 
+            m.setSequenceNumber (send_sequence_++);
             m.pushHeader ();
             
             m.push (streamparam_.agent_id);
@@ -536,7 +543,7 @@ namespace Scaffold
 
         void Stream::sendRexStartupPacket (const string &state)
         {
-            Message::ParamList param;
+            Message::GenericParams param;
 
             param.push_back (streamparam_.agent_id);
             param.push_back (state);
@@ -544,10 +551,11 @@ namespace Scaffold
             sendGenericMessage ("RexStartup", param);
         }
 
-        void Stream::sendGenericMessage (const string &method, const Message::ParamList &param)
+        void Stream::sendGenericMessage (const string &method, const Message::GenericParams &param)
         {
             Message m (factory_.create (GenericMessage, RELIABLE_FLAG | ZERO_CODE_FLAG));
 
+            m.setSequenceNumber (send_sequence_++);
             m.pushHeader ();
             
             m.push (streamparam_.agent_id);
@@ -605,17 +613,42 @@ namespace Scaffold
             cout << "udp error: " << err << endl;
         }
                 
-        void Stream::send_message_ (Message m)
+        bool Stream::send_message_ (Message &m)
         {
-            if (m.getFlags() & RELIABLE_FLAG)
-                // wait for ack for this packet
-                waiting_.insert (m.getSequence());
+            if (!send_handle_acking_ (m))
+                return false;
+
+            if (!send_handle_coding_ (m))
+                return false;
 
             pair <const char *, size_t> buf = m.sendBuffer ();
-            udp_.write (buf.first, buf.second);
+            qint64 size = udp_.write (buf.first, buf.second);
+
+            return true;
         }
                 
-        void Stream::recv_message_ (Message m)
+        bool Stream::send_handle_acking_ (Message &m)
+        {
+            // wait for ack for this packet
+            if (m.getFlags() & RELIABLE_FLAG)
+                waiting_.insert (m.getSequence());
+
+            // TODO ack appending
+            // TODO reliable resending
+
+            return true;
+        }
+
+        bool Stream::send_handle_coding_ (Message &m)
+        {
+            // zero-encode this packet
+            if (m.getFlags() & ZERO_CODE_FLAG)
+                ;
+
+            return true;
+        }
+
+        bool Stream::recv_message_ (Message &m)
         {
             pair <char *, size_t> buf = m.recvBuffer ();
             qint64 size = udp_.readDatagram (buf.first, buf.second);
@@ -623,28 +656,82 @@ namespace Scaffold
             if (size > MESSAGE_HEADER_SIZE)
             {
                 m.popHeader ();
-                msg_id_t id = m.getID();
 
-                if (id == PacketAck)
-                {
-                    uint32_t seq;
-                    uint8_t blocks;
+                // drop previously seen sequence numbers
+                if (!recv_handle_duplicate_ (m))
+                    return false;
 
-                    m.pop (blocks);
-                    for (int i=0; i < blocks; ++i)
-                    {
-                        m.pop (seq);
+                // acknowledge receipt of this packet
+                if (!recv_handle_acking_ (m))
+                    return false;
 
-                        // stop waiting for acked packets
-                        waiting_.erase (seq);
-                    }
-                }
-                else
-                    // notify listeners
-                    signals_[id] (m);
+                // zero-decode this packet
+                if (!recv_handle_coding_ (m))
+                    return false;
+
+                // notify listeners
+                subscribers_ [m.getID()] (m);
             }
 
-            m.seek (0, Message::Beg);
+            m.print (cout);
+            return true;
+        }
+
+        bool Stream::recv_handle_duplicate_ (Message &m)
+        {
+            using std::advance;
+
+            if (received_.count (m.getSequence()))
+                return false;
+            else
+            {
+                received_.insert (m.getSequence());
+
+                // maintain limited received sequence window
+                if (received_.size() > (MESSAGE_WINDOW * 2))
+                {
+                    Message::SequenceSet::iterator b = received_.begin();
+                    Message::SequenceSet::iterator e = received_.begin();
+
+                    advance (e, MESSAGE_WINDOW);
+                    received_.erase (b, e);
+                }
+            }
+
+            return true;
+        }
+
+        bool Stream::recv_handle_acking_ (Message &m)
+        {
+            if (m.getID() == PacketAck)
+            {
+                uint8_t blocks;
+                uint32_t seq;
+
+                m.pop (blocks);
+                for (int i=0; i < blocks; ++i)
+                {
+                    m.pop (seq);
+
+                    // stop waiting for acked packets
+                    waiting_.erase (seq);
+                }
+
+                return false;
+            }
+
+            else if (m.getFlags() & RELIABLE_FLAG)
+                acking_.insert (m.getSequence());
+                
+            return true;
+        }
+                
+        bool Stream::recv_handle_coding_ (Message &m)
+        {
+            if (m.getFlags() & ZERO_CODE_FLAG)
+                ;
+
+            return true;
         }
 
         //=========================================================================

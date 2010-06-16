@@ -385,7 +385,7 @@ namespace Scaffold
         //=============================================================================
         // Unchecked message type
 
-        Message::Message (shared_ptr <ByteBuffer> d, uint32_t id, uint32_t seq, uint8_t flags) : 
+        Message::Message (shared_ptr <ByteBuffer> d, uint32_t id, uint8_t flags, uint32_t seq) : 
             data_ (d), 
             id_ (id), 
             seq_ (seq), 
@@ -402,6 +402,27 @@ namespace Scaffold
         uint32_t Message::getSequence () const { return seq_; }
         uint8_t Message::getFlags () const { return flags_; }
         int Message::priority () const { return priority_; }
+                
+        size_t Message::size () const
+        {
+            assert (end_ - begin_ >= 0);
+            assert (end_ - begin_ <= MAX_MESSAGE_SIZE);
+
+            return end_ - begin_;
+        }
+
+        size_t Message::headerSize () const
+        {
+            assert (end_ - begin_ > MESSAGE_HEADER_SIZE);
+
+            return MESSAGE_HEADER_SIZE + (begin_[MESSAGE_EXTRA_HEADER])? 
+                begin_[MESSAGE_EXTRA_HEADER] : 0;
+        }
+
+        size_t Message::bodySize () const
+        {
+            return size() - headerSize(); // TODO less ack appending
+        }
 
         void Message::setID (uint32_t id) { id_ = id; priority_ = get_priority_ (id); }
         void Message::setSequenceNumber (uint32_t seq) { seq_ = seq; }
@@ -593,11 +614,11 @@ namespace Scaffold
         {
             if (id == 0)
                 return PacketInfo::ERROR;
-            else if (id < 0xff00)
+            else if (id < 0xFF00)
                 return PacketInfo::HIGH;
-            else if (id < 0xffff0000)
+            else if (id < 0xFFFF0000)
                 return PacketInfo::MEDIUM;
-            else if (id < 0xffffff00)
+            else if (id < 0xFFFFFF00)
                 return PacketInfo::LOW;
             else
                 return PacketInfo::FIXED;
@@ -608,11 +629,11 @@ namespace Scaffold
             switch (priority_)
             {
                 case PacketInfo::HIGH: 
-                    pushBigEndian <uint8_t> (id_);
+                    pushBigEndian <uint8_t> (id_ | 0x00);
                     break;
 
                 case PacketInfo::MEDIUM: 
-                    pushBigEndian <uint16_t> (id_ | 0x0000FF00);
+                    pushBigEndian <uint16_t> (id_ | 0xFF00);
                     break;
 
                 case PacketInfo::LOW: 
@@ -620,7 +641,7 @@ namespace Scaffold
                     break;
 
                 case PacketInfo::FIXED: 
-                    pushBigEndian <uint32_t> (id_);
+                    pushBigEndian <uint32_t> (id_ | 0xFFFFFF00);
                     break;
 
                 case PacketInfo::ERROR:
@@ -670,7 +691,6 @@ namespace Scaffold
 
         MessageFactory::MessageFactory () : 
             error_ (false), 
-            sequence_ (1),
             parser_ ("message_template.msg")
         {
             using std::make_heap;
@@ -704,7 +724,7 @@ namespace Scaffold
             
             set_used_buffer_ (buf);
 
-            return Message (ptr, id, sequence_++, flags);
+            return Message (ptr, id, flags);
         }
 
         ByteBuffer *MessageFactory::next_free_buffer_ ()

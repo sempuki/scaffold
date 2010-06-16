@@ -29,6 +29,7 @@ add_executable (test
     llstack/messageid.cpp
     llstack/provider.cpp 
     llstack/moc_provider.cpp
+    llstack/zerocode.cpp
     moc_xmlrpc.cpp
     moc_capabilities.cpp
     moc_application.cpp

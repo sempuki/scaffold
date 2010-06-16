@@ -192,7 +192,7 @@ namespace Scaffold
                 void sendAgentThrottlePacket ();
                 void sendAgentWearablesRequestPacket ();
                 void sendRexStartupPacket (const string &state); 
-                void sendGenericMessage (const string &method, const Message::ParamList &parms);
+                void sendGenericMessage (const string &method, const Message::GenericParams &parms);
 
             protected slots:
                 void on_host_found ();
@@ -204,23 +204,34 @@ namespace Scaffold
                 void on_error (QAbstractSocket::SocketError);
 
             private:
-                void send_message_ (Message msg);
-                void recv_message_ (Message msg);
+                bool send_message_ (Message &m);
+                bool send_handle_acking_ (Message &m);
+                bool send_handle_coding_ (Message &m);
+
+                bool recv_message_ (Message &m);
+                bool recv_handle_duplicate_ (Message &m);
+                bool recv_handle_acking_ (Message &m);
+                bool recv_handle_coding_ (Message &m);
 
             private:
                 bool    connected_;
 
-                MessageNameMap      names_;
-                MessageIDMap        idmap_;
-                MessageIDSet        waiting_;
+                uint32_t    send_sequence_;
+                uint32_t    recv_sequence_;
 
-                MessageFactory      factory_;
-                QUdpSocket          udp_;
+                Message::NameMap        names_;
+                Message::IDMap          idmap_;
+                Message::SequenceSet    waiting_;
+                Message::SequenceSet    acking_;
+                Message::SequenceSet    received_;
 
-                Message::SignalMap  signals_;
+                Message::SubscriptionMap    subscribers_;
 
-                StreamParameters    streamparam_;
-                SessionParameters   sessionparam_;
+                MessageFactory          factory_;
+                QUdpSocket              udp_;
+
+                StreamParameters        streamparam_;
+                SessionParameters       sessionparam_;
         };
         
         //=========================================================================
