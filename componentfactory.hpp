@@ -15,9 +15,9 @@ namespace Scaffold
             public:
                 typedef std::vector <ComponentFactoryBase *> List;
 
-                virtual ~ComponentFactoryBase () {}
-                virtual Component::List components () {}
-                virtual void decorate (Entity *entity) {}
+                virtual ~ComponentFactoryBase () {};
+                virtual Component::List components () = 0;
+                virtual void decorate (Entity *entity) = 0;
         };
 
         template <typename ComponentType>

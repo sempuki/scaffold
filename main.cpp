@@ -133,6 +133,7 @@ struct Logic : public Module
         parms.insert ("service", "http://localhost:8002");
         //parms.insert ("service", "http://home.hulkko.net:9007");
         //parms.insert ("service", "http://world.realxtend.org:9000");
+        //parms.insert ("service", "http://world.evocativi.com:8002");
         
         QFuture <Session *> login = service_session_manager->retire (parms);
 
@@ -167,7 +168,7 @@ struct Logic : public Module
     {
         if (stream->waitForRead ())
         {
-            while (stream->hasMessages ());
+            while (true); // we have no idea when to quit atm
 
             state = 4;
         }
