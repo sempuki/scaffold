@@ -7,7 +7,7 @@ size_t CountZeroEncodedLength(const uint8_t *data, size_t numBytes);
 
 /// @return The number of bytes the given zeroencoded data block will take when it is zero-decoded
 ///  or 0 if the data block is malformed and can't be decoded.
-size_t CountZeroDecodedLength(const uint8_t *zeroEncodedData, size_t numBytes);
+size_t CountZeroDecodedLength(const uint8_t *data, size_t numBytes);
 
 /// Zero-encodes the given data block.
 /// @param dstData [out] The resulting zero-encoded block will be written here.

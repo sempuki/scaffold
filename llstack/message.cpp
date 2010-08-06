@@ -403,7 +403,7 @@ namespace Scaffold
         uint8_t Message::getFlags () const { return flags_; }
         int Message::priority () const { return priority_; }
                 
-        size_t Message::size () const
+        int Message::size () const
         {
             assert (end_ - begin_ >= 0);
             assert (end_ - begin_ <= MAX_MESSAGE_SIZE);
@@ -411,7 +411,7 @@ namespace Scaffold
             return end_ - begin_;
         }
 
-        size_t Message::headerSize () const
+        int Message::headerSize () const
         {
             assert (end_ - begin_ > MESSAGE_HEADER_SIZE);
 
@@ -419,32 +419,80 @@ namespace Scaffold
                 begin_[MESSAGE_EXTRA_HEADER] : 0;
         }
 
-        size_t Message::bodySize () const
+        int Message::bodySize () const
         {
-            return size() - headerSize(); // TODO less ack appending
+            return size() - headerSize() - appendAckSize();
+        }
+
+        int Message::appendAckSize () const
+        {
+            return *(end_ - 1);
+        }
+
+        int Message::maxSize () const
+        {
+            return max_ - begin_;
+        }
+
+        void Message::setSize (int size)
+        {
+            end_ = begin_ + size;
+
+            assert (pos_ <= end_);
+            assert (end_ <= max_);
         }
 
         void Message::setID (uint32_t id) { id_ = id; priority_ = get_priority_ (id); }
         void Message::setSequenceNumber (uint32_t seq) { seq_ = seq; }
         void Message::setFlags (uint8_t flags) { flags_ = flags; }
 
-        void Message::seek (size_t pos, SeekType dir)
+        int Message::seek (int pos, SeekType dir)
         {
             using std::max;
 
+            int prev = pos_ - begin_;
+
             switch (dir)
             {
-                case Beg: pos_ = begin_ + pos; break;
-                case Cur: pos_ = pos_ + pos; break;
-                case End: pos_ = end_ - pos; break;
+                case Beg: 
+                    pos_ = begin_ + pos; 
+                    break;
+
+                case Body: 
+                    pos_ = begin_ + headerSize() + pos;
+
+                case Cur: 
+                    pos_ = pos_ + pos; 
+                    break;
+
+                case AppendAck: 
+                    pos_ = end_ - appendAckSize() - 1 + pos;
+                    break;
+
+                case End: 
+                    pos_ = end_ - pos; 
+                    break;
             }
 
             end_ = max (pos_, end_); 
 
             assert (pos_ <= end_);
             assert (end_ <= max_);
+
+            return prev;
         }
         
+        void Message::advance (int pos)
+        {
+            using std::max;
+
+            pos_ += pos;
+            end_ = max (pos_, end_); 
+
+            assert (pos_ <= end_);
+            assert (end_ <= max_);
+        }
+
         template <> void Message::push <string> (string str)
         {
             using std::copy;
@@ -452,7 +500,7 @@ namespace Scaffold
             pushVariableSize (str.size() + 1); 
 
             copy (str.begin(), str.end(), pos_);
-            seek (str.size());
+            advance (str.size());
 
             push <uint8_t> (0); // null term
         }
@@ -480,7 +528,7 @@ namespace Scaffold
 
             str.resize (size - 1);
             copy (pos_, pos_+size-1, str.begin());
-            seek (size);
+            advance (size);
         }
 
         template <> void Message::push <QQuaternion> (QQuaternion value)
@@ -566,7 +614,7 @@ namespace Scaffold
             pushVariableSize (buf.size());
 
             copy (buf.begin(), buf.end(), pos_);
-            seek (buf.size());
+            advance (buf.size());
         }
 
         void Message::popVariable1 (std::vector <uint8_t> &buf, uint8_t &size)
@@ -577,7 +625,7 @@ namespace Scaffold
             buf.resize (size);
 
             copy (pos_, pos_+size, buf.begin());
-            seek (size);
+            advance (size);
         }
 
         void Message::popVariable2 (std::vector <uint8_t> &buf, uint16_t &size)
@@ -588,7 +636,7 @@ namespace Scaffold
             buf.resize (size);
 
             copy (pos_, pos_+size, buf.begin());
-            seek (size);
+            advance (size);
         }
 
         void Message::print (std::ostream &out)

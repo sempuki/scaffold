@@ -615,14 +615,14 @@ namespace Scaffold
                 
         bool Stream::send_message_ (Message &m)
         {
-            if (!send_handle_acking_ (m))
-                return false;
-
             if (!send_handle_coding_ (m))
                 return false;
 
+            if (!send_handle_acking_ (m))
+                return false;
+
             pair <const char *, size_t> buf = m.sendBuffer ();
-            qint64 size = udp_.write (buf.first, buf.second);
+            int size = static_cast <int> (udp_.write (buf.first, buf.second));
 
             return true;
         }
@@ -633,8 +633,22 @@ namespace Scaffold
             if (m.getFlags() & RELIABLE_FLAG)
                 waiting_.insert (m.getSequence());
 
-            // TODO ack appending
+            // ack appending
+            if (acking_.size())
+            {
+                // TODO send AckPacket if appended ack is too large
+                assert (m.size() + acking_.size() < m.maxSize());
+
+                for_each (acking_.begin(), acking_.end(), 
+                        bind (&Message::push <uint32_t>, &m, _1));
+
+                m.push <uint8_t> (acking_.size());
+
+                acking_.erase (acking_.begin(), acking_.end());
+            }
+
             // TODO reliable resending
+            // resend messages in waiting_ if stale
 
             return true;
         }
@@ -643,7 +657,7 @@ namespace Scaffold
         {
             // zero-encode this packet
             if (m.getFlags() & ZERO_CODE_FLAG)
-                ;
+                ; // TODO
 
             return true;
         }
@@ -651,10 +665,14 @@ namespace Scaffold
         bool Stream::recv_message_ (Message &m)
         {
             pair <char *, size_t> buf = m.recvBuffer ();
-            qint64 size = udp_.readDatagram (buf.first, buf.second);
+            int size = static_cast <int> (udp_.readDatagram (buf.first, buf.second));
 
             if (size > MESSAGE_HEADER_SIZE)
             {
+                // set known message length
+                m.setSize (size);
+
+                // load header into Message
                 m.popHeader ();
 
                 // drop previously seen sequence numbers
@@ -682,7 +700,13 @@ namespace Scaffold
             using std::advance;
 
             if (received_.count (m.getSequence()))
+            {
+                // our ack was lost; re-ack
+                if (m.getFlags() & RESENT_FLAG)
+                    acking_.insert (m.getSequence());
+
                 return false;
+            }
             else
             {
                 received_.insert (m.getSequence());
@@ -691,10 +715,10 @@ namespace Scaffold
                 if (received_.size() > (MESSAGE_WINDOW * 2))
                 {
                     Message::SequenceSet::iterator b = received_.begin();
-                    Message::SequenceSet::iterator e = received_.begin();
+                    Message::SequenceSet::iterator i = received_.begin();
 
-                    advance (e, MESSAGE_WINDOW);
-                    received_.erase (b, e);
+                    advance (i, MESSAGE_WINDOW);
+                    received_.erase (b, i);
                 }
             }
 
@@ -703,25 +727,44 @@ namespace Scaffold
 
         bool Stream::recv_handle_acking_ (Message &m)
         {
+            // dedicated ack packet
             if (m.getID() == PacketAck)
             {
                 uint8_t blocks;
                 uint32_t seq;
-
-                m.pop (blocks);
-                for (int i=0; i < blocks; ++i)
+                
+                for (m.pop (blocks); blocks; --blocks)
                 {
                     m.pop (seq);
-
-                    // stop waiting for acked packets
                     waiting_.erase (seq);
                 }
 
                 return false;
             }
 
-            else if (m.getFlags() & RELIABLE_FLAG)
-                acking_.insert (m.getSequence());
+            else 
+            {
+                uint8_t flags = m.getFlags();
+
+                // is reliable; requires acknowledgement
+                if (flags & RELIABLE_FLAG)
+                    acking_.insert (m.getSequence());
+
+                // contains appended acks
+                if (flags & ACK_FLAG)
+                {
+                    int prev = m.seek (0, Message::AppendAck);
+                    uint32_t seq;
+
+                    for (int n = m.appendAckSize (); n; --n)
+                    {
+                        m.pop (seq);
+                        waiting_.erase (seq);
+                    }
+
+                    m.seek (prev, Message::Beg);
+                }
+            }
                 
             return true;
         }
@@ -729,7 +772,7 @@ namespace Scaffold
         bool Stream::recv_handle_coding_ (Message &m)
         {
             if (m.getFlags() & ZERO_CODE_FLAG)
-                ;
+                ; // TODO
 
             return true;
         }

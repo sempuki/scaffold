@@ -98,7 +98,7 @@ namespace Scaffold
                 typedef std::map <string, uint32_t> IDMap;
                 typedef std::set <uint32_t> SequenceSet;
 
-                enum SeekType { Beg, Cur, End };
+                enum SeekType { Beg, Body, Cur, AppendAck, End };
 
                 Message (shared_ptr <ByteBuffer> d, uint32_t id = 0, uint8_t flags = 0, uint32_t seq = 0);
 
@@ -107,17 +107,21 @@ namespace Scaffold
                 uint8_t getFlags () const;
                 int priority () const;
 
-                size_t size () const;
-                size_t headerSize () const;
-                size_t bodySize () const;
+                int size () const;
+                int headerSize () const;
+                int bodySize () const;
+                int appendAckSize () const;
+                int maxSize () const;
 
+                void setSize (int size);
                 void setID (uint32_t id);
                 void setSequenceNumber (uint32_t seq);
                 void setFlags (uint8_t flags);
 
-                void seek (size_t pos, SeekType dir = Cur);
+                int seek (int pos, SeekType dir);
+                void advance (int pos);
 
-                template <typename T> void next () { seek (sizeof (T)); }
+                template <typename T> void next () { advance (sizeof (T)); }
 
                 template <typename T> void put (T value) { T *ptr = (T *)pos_; *ptr = value; }
                 template <typename T> void putBigEndian (T value) { qToBigEndian <T> (value, pos_); } 
