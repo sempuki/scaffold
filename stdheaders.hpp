@@ -8,6 +8,7 @@
 
 #include <cassert>
 #include <cmath>
+#include <ctime>
 
 #include <ios>
 #include <iomanip>

@@ -213,6 +213,13 @@ namespace Scaffold
                 bool recv_handle_acking_ (Message &m);
                 bool recv_handle_coding_ (Message &m);
 
+                void resend_enqueue_ (Message &m);
+                void resend_dequeue_ (uint32_t seq);
+                void resend_process_ ();
+
+                void ack_enqueue_ (uint32_t seq);
+                void ack_append_ (Message &m);
+
             private:
                 bool    connected_;
 
@@ -221,9 +228,9 @@ namespace Scaffold
 
                 Message::NameMap        names_;
                 Message::IDMap          idmap_;
-                Message::SequenceSet    waiting_;
                 Message::SequenceSet    acking_;
                 Message::SequenceSet    received_;
+                Message::Map            resend_;
 
                 Message::SubscriptionMap    subscribers_;
 

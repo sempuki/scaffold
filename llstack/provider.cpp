@@ -631,24 +631,14 @@ namespace Scaffold
         {
             // wait for ack for this packet
             if (m.getFlags() & RELIABLE_FLAG)
-                waiting_.insert (m.getSequence());
+                resend_enqueue_ (m);
 
             // ack appending
             if (acking_.size())
-            {
-                // TODO send AckPacket if appended ack is too large
-                assert (m.size() + acking_.size() < m.maxSize());
+                ack_append_ (m);
 
-                for_each (acking_.begin(), acking_.end(), 
-                        bind (&Message::push <uint32_t>, &m, _1));
-
-                m.push <uint8_t> (acking_.size());
-
-                acking_.erase (acking_.begin(), acking_.end());
-            }
-
-            // TODO reliable resending
-            // resend messages in waiting_ if stale
+            // reliable resending
+            resend_process_ ();
 
             return true;
         }
@@ -672,7 +662,7 @@ namespace Scaffold
                 // set known message length
                 m.setSize (size);
 
-                // load header into Message
+                // load header into fields
                 m.popHeader ();
 
                 // drop previously seen sequence numbers
@@ -703,14 +693,12 @@ namespace Scaffold
             {
                 // our ack was lost; re-ack
                 if (m.getFlags() & RESENT_FLAG)
-                    acking_.insert (m.getSequence());
+                    ack_enqueue_ (m.getSequence());
 
                 return false;
             }
             else
             {
-                received_.insert (m.getSequence());
-
                 // maintain limited received sequence window
                 if (received_.size() > (MESSAGE_WINDOW * 2))
                 {
@@ -720,6 +708,8 @@ namespace Scaffold
                     advance (i, MESSAGE_WINDOW);
                     received_.erase (b, i);
                 }
+
+                received_.insert (m.getSequence());
             }
 
             return true;
@@ -736,33 +726,30 @@ namespace Scaffold
                 for (m.pop (blocks); blocks; --blocks)
                 {
                     m.pop (seq);
-                    waiting_.erase (seq);
+                    resend_dequeue_ (seq);
                 }
 
                 return false;
             }
-
             else 
             {
-                uint8_t flags = m.getFlags();
-
                 // is reliable; requires acknowledgement
-                if (flags & RELIABLE_FLAG)
-                    acking_.insert (m.getSequence());
+                if (m.getFlags() & RELIABLE_FLAG)
+                    ack_enqueue_ (m.getSequence());
 
                 // contains appended acks
-                if (flags & ACK_FLAG)
+                if (m.getFlags() & ACK_FLAG)
                 {
-                    int prev = m.seek (0, Message::AppendAck);
-                    uint32_t seq;
+                    int prev = m.seek (0, Message::Append);
 
-                    for (int n = m.appendAckSize (); n; --n)
+                    uint32_t seq;
+                    for (int n = m.appendAckSize(); n; --n)
                     {
                         m.pop (seq);
-                        waiting_.erase (seq);
+                        resend_dequeue_ (seq);
                     }
 
-                    m.seek (prev, Message::Beg);
+                    m.seek (prev, Message::Begin);
                 }
             }
                 
@@ -775,6 +762,51 @@ namespace Scaffold
                 ; // TODO
 
             return true;
+        }
+
+        void Stream::resend_enqueue_ (Message &m)
+        {
+            using std::time;
+
+            m.setAge (time (0));
+            resend_.insert (make_pair (m.getSequence(), m));
+        } 
+
+        void Stream::resend_dequeue_ (uint32_t seq)
+        {
+            resend_.erase (seq);
+        }
+
+        void Stream::ack_enqueue_ (uint32_t seq)
+        {
+            acking_.insert (seq);
+        }
+
+        void Stream::ack_append_ (Message &m)
+        {
+            // TODO send AckPacket if appended ack is too large
+            // TODO don't overflow the maximum buffer size
+            // comment: naali doesn't do appending, only dedicated acks
+
+            for_each (acking_.begin(), acking_.end(), 
+                    bind (&Message::push <uint32_t>, &m, _1));
+            m.push <uint8_t> (acking_.size());
+
+            acking_.erase (acking_.begin(), acking_.end());
+        }
+                
+        void Stream::resend_process_ ()
+        {
+            using std::time;
+
+            Message::Map::iterator i = resend_.begin();
+            Message::Map::iterator e = resend_.end();
+
+            // TODO this is recursive and crashy!!
+            //time_t now = time (0);
+            //for (; i != e; ++i)
+            //    if (now - i->first > MESSAGE_RESEND_AGE)
+            //        send_message_ (i->second);
         }
 
         //=========================================================================

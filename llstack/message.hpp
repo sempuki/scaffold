@@ -16,6 +16,8 @@ namespace Scaffold
     {
         const float MAX_BPS (1000000.0f);
         const size_t MAX_MESSAGE_SIZE (2048);
+        const size_t MAX_MESSAGE_APPEND_ACKS (100);
+        const size_t MESSAGE_RESEND_AGE (5);
         const size_t MESSAGE_WINDOW (256);
         const size_t MESSAGE_POOL_SIZE (16);
         const size_t MESSAGE_HEADER_SIZE (6);
@@ -88,35 +90,57 @@ namespace Scaffold
         class Message 
         {
             public:
-                typedef void (Listener) (Message);
-                typedef Subscription <Listener> Signal;
-                typedef std::map <msg_id_t, Signal> SubscriptionMap;
-
-                typedef std::vector <string> GenericParams;
-
+                struct SequenceComp
+                {
+                    bool operator() (const Message &l, const Message &r)
+                    {
+                        return l.getSequence() < r.getSequence();
+                    }
+                };
+                
+                struct AgeComp
+                {
+                    bool operator() (const Message &l, const Message &r)
+                    {
+                        return l.age() < r.age();
+                    }
+                };
+                
+            public:
+                typedef std::map <uint32_t, Message> Map;
                 typedef std::map <uint32_t, string> NameMap;
                 typedef std::map <string, uint32_t> IDMap;
                 typedef std::set <uint32_t> SequenceSet;
 
-                enum SeekType { Beg, Body, Cur, AppendAck, End };
+                typedef std::vector <string> GenericParams;
 
+                typedef void (Listener) (Message);
+                typedef Subscription <Listener> Signal;
+                typedef std::map <msg_id_t, Signal> SubscriptionMap;
+
+                enum SeekType { Begin, Body, Curr, Append, End };
+
+            public:
                 Message (shared_ptr <ByteBuffer> d, uint32_t id = 0, uint8_t flags = 0, uint32_t seq = 0);
 
                 uint32_t getID () const;
                 uint32_t getSequence () const;
                 uint8_t getFlags () const;
-                int priority () const;
 
+                time_t age () const;
+
+                int priority () const;
                 int size () const;
                 int headerSize () const;
                 int bodySize () const;
                 int appendAckSize () const;
                 int maxSize () const;
 
-                void setSize (int size);
                 void setID (uint32_t id);
                 void setSequenceNumber (uint32_t seq);
                 void setFlags (uint8_t flags);
+                void setAge (time_t age);
+                void setSize (int size);
 
                 int seek (int pos, SeekType dir);
                 void advance (int pos);
@@ -167,6 +191,7 @@ namespace Scaffold
                 uint32_t    seq_;
                 int         priority_;
                 uint8_t     flags_;
+                time_t      age_;
 
                 uint8_t     *begin_;
                 uint8_t     *pos_;

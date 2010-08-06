@@ -391,6 +391,7 @@ namespace Scaffold
             seq_ (seq), 
             priority_ (get_priority_ (id_)),
             flags_ (flags),
+            age_ (0),
             begin_ (d->data), 
             pos_ (begin_), 
             end_ (begin_), 
@@ -401,6 +402,7 @@ namespace Scaffold
         uint32_t Message::getID () const { return id_; }
         uint32_t Message::getSequence () const { return seq_; }
         uint8_t Message::getFlags () const { return flags_; }
+        time_t Message::age () const { return age_; }
         int Message::priority () const { return priority_; }
                 
         int Message::size () const
@@ -445,6 +447,7 @@ namespace Scaffold
         void Message::setID (uint32_t id) { id_ = id; priority_ = get_priority_ (id); }
         void Message::setSequenceNumber (uint32_t seq) { seq_ = seq; }
         void Message::setFlags (uint8_t flags) { flags_ = flags; }
+        void Message::setAge (time_t age) { age_ = age; }
 
         int Message::seek (int pos, SeekType dir)
         {
@@ -454,18 +457,18 @@ namespace Scaffold
 
             switch (dir)
             {
-                case Beg: 
+                case Begin: 
                     pos_ = begin_ + pos; 
                     break;
 
                 case Body: 
                     pos_ = begin_ + headerSize() + pos;
 
-                case Cur: 
+                case Curr: 
                     pos_ = pos_ + pos; 
                     break;
 
-                case AppendAck: 
+                case Append: 
                     pos_ = end_ - appendAckSize() - 1 + pos;
                     break;
 
@@ -502,7 +505,7 @@ namespace Scaffold
             copy (str.begin(), str.end(), pos_);
             advance (str.size());
 
-            push <uint8_t> (0); // null term
+            push <uint8_t> (0); // null termate
         }
 
         template <> void Message::pop <string> (string &str)
@@ -782,6 +785,8 @@ namespace Scaffold
 
         ByteBuffer *MessageFactory::add_free_buffer_ (size_t size)
         {
+            using std::push_heap;
+
             ByteBuffer *buf = new ByteBuffer (size);
 
             free_.push_back (buf);
@@ -792,6 +797,8 @@ namespace Scaffold
 
         ByteBuffer *MessageFactory::get_free_buffer_ ()
         {
+            using std::pop_heap;
+
             pop_heap (free_.begin(), free_.end());
             ByteBuffer *buf = free_.back ();
 
@@ -801,6 +808,8 @@ namespace Scaffold
 
         void MessageFactory::set_free_buffer_ (ByteBuffer *buf)
         {
+            using std::push_heap;
+
             free_.push_back (buf);
             push_heap (free_.begin(), free_.end());
 
