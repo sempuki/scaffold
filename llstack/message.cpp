@@ -447,6 +447,9 @@ namespace Scaffold
         void Message::setID (uint32_t id) { id_ = id; priority_ = get_priority_ (id); }
         void Message::setSequenceNumber (uint32_t seq) { seq_ = seq; }
         void Message::setFlags (uint8_t flags) { flags_ = flags; }
+        void Message::enableFlags (uint8_t flags) { flags_ |= flags; }
+        void Message::disableFlags (uint8_t flags) { flags_ &= ~flags; }
+
         void Message::setAge (time_t age) { age_ = age; }
 
         int Message::seek (int pos, SeekType dir)

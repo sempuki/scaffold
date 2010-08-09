@@ -629,6 +629,10 @@ namespace Scaffold
                 
         bool Stream::send_handle_acking_ (Message &m)
         {
+            // not needed for resends
+            if (m.getFlags() & RESEND_FLAG)
+                return true;
+
             // wait for ack for this packet
             if (m.getFlags() & RELIABLE_FLAG)
                 resend_enqueue_ (m);
@@ -692,7 +696,7 @@ namespace Scaffold
             if (received_.count (m.getSequence()))
             {
                 // our ack was lost; re-ack
-                if (m.getFlags() & RESENT_FLAG)
+                if (m.getFlags() & RESEND_FLAG)
                     ack_enqueue_ (m.getSequence());
 
                 return false;
@@ -769,6 +773,8 @@ namespace Scaffold
             using std::time;
 
             m.setAge (time (0));
+            m.enableFlags (RESEND_FLAG);
+
             resend_.insert (make_pair (m.getSequence(), m));
         } 
 
@@ -802,11 +808,10 @@ namespace Scaffold
             Message::Map::iterator i = resend_.begin();
             Message::Map::iterator e = resend_.end();
 
-            // TODO this is recursive and crashy!!
-            //time_t now = time (0);
-            //for (; i != e; ++i)
-            //    if (now - i->first > MESSAGE_RESEND_AGE)
-            //        send_message_ (i->second);
+            time_t now = time (0);
+            for (; i != e; ++i)
+                if (now - i->first > MESSAGE_RESEND_AGE)
+                    send_message_ (i->second);
         }
 
         //=========================================================================

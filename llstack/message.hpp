@@ -24,7 +24,7 @@ namespace Scaffold
         const size_t MESSAGE_EXTRA_HEADER (5);
         const uint8_t ZERO_CODE_FLAG (0x80);
         const uint8_t RELIABLE_FLAG (0x40);
-        const uint8_t RESENT_FLAG (0x20);
+        const uint8_t RESEND_FLAG (0x20);
         const uint8_t ACK_FLAG (0x10);
 
         struct VariableInfo
@@ -139,6 +139,9 @@ namespace Scaffold
                 void setID (uint32_t id);
                 void setSequenceNumber (uint32_t seq);
                 void setFlags (uint8_t flags);
+                void enableFlags (uint8_t flags);
+                void disableFlags (uint8_t flags);
+
                 void setAge (time_t age);
                 void setSize (int size);
 
