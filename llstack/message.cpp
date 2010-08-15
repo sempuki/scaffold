@@ -523,12 +523,12 @@ namespace Scaffold
             if (*(pos_ + size1) == 0)
             {
                 size = size1;
-                next <uint8_t> ();
+                skip <uint8_t> ();
             }
             else if (*(pos_ + size2) == 0)
             {
                 size = size2;
-                next <uint16_t> ();
+                skip <uint16_t> ();
             }
             else return;
 
@@ -645,15 +645,6 @@ namespace Scaffold
             advance (size);
         }
 
-        void Message::print (std::ostream &out)
-        {
-            using std::ostream_iterator;
-            using std::copy;
-            using std::hex;
-
-            copy (begin_, end_, ostream_iterator <int> (out << hex, " "));
-        }
-
         pair <const char*, size_t> Message::sendBuffer () const
         {
             return make_pair ((const char *)begin_, end_ - begin_);
@@ -664,6 +655,22 @@ namespace Scaffold
             return make_pair ((char *)begin_, max_ - begin_);
         }
                 
+        void Message::clear ()
+        {
+            using std::fill;
+
+            fill (begin_, max_, 0);
+        }
+
+        void Message::print (std::ostream &out)
+        {
+            using std::ostream_iterator;
+            using std::copy;
+            using std::hex;
+
+            copy (begin_, end_, ostream_iterator <int> (out << hex, " "));
+        }
+
         int Message::get_priority_ (uint32_t id)
         {
             if (id == 0)
@@ -716,27 +723,27 @@ namespace Scaffold
                     {
                         id_ = quad & 0xFFFFFFFF;
                         priority_ = PacketInfo::FIXED;
-                        next <uint32_t> ();
+                        skip <uint32_t> ();
                     }
                     else
                     {
-                        id_ = quad & 0x0000FFFF;
+                        id_ = quad & 0xFFFFFFFF;
                         priority_ = PacketInfo::LOW;
-                        next <uint32_t> ();
+                        skip <uint32_t> ();
                     }
                 }
                 else
                 {
-                    id_ = quad & 0x00FF0000;
+                    id_ = quad & 0xFFFF0000;
                     priority_ = PacketInfo::MEDIUM;
-                    next <uint16_t> ();
+                    skip <uint16_t> ();
                 }
             }
             else
             {
                 id_ = quad & 0xFF000000;
                 priority_ = PacketInfo::HIGH;
-                next <uint8_t> ();
+                skip <uint8_t> ();
             }
         }
 

@@ -148,7 +148,7 @@ namespace Scaffold
                 int seek (int pos, SeekType dir);
                 void advance (int pos);
 
-                template <typename T> void next () { advance (sizeof (T)); }
+                template <typename T> void skip () { advance (sizeof (T)); }
 
                 template <typename T> void put (T value) { T *ptr = (T *)pos_; *ptr = value; }
                 template <typename T> void putBigEndian (T value) { qToBigEndian <T> (value, pos_); } 
@@ -158,13 +158,13 @@ namespace Scaffold
                 template <typename T> void getBigEndian (T& value) { value = qFromBigEndian <T> (pos_); }
                 template <typename T> void getLittleEndian (T& value) { value = qFromLittleEndian <T> (pos_); } 
 
-                template <typename T> void push (T value) { put (value); next <T> (); }
-                template <typename T> void pushBigEndian (T value) { putBigEndian (value); next <T> (); }
-                template <typename T> void pushLittleEndian (T value) { putLittleEndian (value); next <T> (); } 
+                template <typename T> void push (T value) { put (value); skip <T> (); }
+                template <typename T> void pushBigEndian (T value) { putBigEndian (value); skip <T> (); }
+                template <typename T> void pushLittleEndian (T value) { putLittleEndian (value); skip <T> (); } 
 
-                template <typename T> void pop (T& value) { get (value); next <T> (); }
-                template <typename T> void popBigEndian (T& value) { getBigEndian (value); next <T> (); }
-                template <typename T> void popLittleEndian (T& value) { getLittleEndian (value); next <T> (); }
+                template <typename T> void pop (T& value) { get (value); skip <T> (); }
+                template <typename T> void popBigEndian (T& value) { getBigEndian (value); skip <T> (); }
+                template <typename T> void popLittleEndian (T& value) { getLittleEndian (value); skip <T> (); }
 
                 void pushHeader ();
                 void popHeader ();
@@ -179,6 +179,8 @@ namespace Scaffold
 
                 pair <const char*, size_t> sendBuffer () const;
                 pair <char*, size_t> recvBuffer () const;
+
+                void clear ();
 
                 void print (std::ostream &out);
 

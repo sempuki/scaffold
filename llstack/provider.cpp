@@ -685,7 +685,8 @@ namespace Scaffold
                 subscribers_ [m.getID()] (m);
             }
 
-            m.print (cout);
+            cout << "message: " << names_ [m.getID()] << endl;
+            
             return true;
         }
 
@@ -808,8 +809,7 @@ namespace Scaffold
             Message::Map::iterator i = resend_.begin();
             Message::Map::iterator e = resend_.end();
 
-            time_t now = time (0);
-            for (; i != e; ++i)
+            for (time_t now = time (0); i != e; ++i)
                 if (now - i->first > MESSAGE_RESEND_AGE)
                     send_message_ (i->second);
         }
