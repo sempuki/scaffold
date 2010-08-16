@@ -134,7 +134,7 @@ namespace Scaffold
                 int headerSize () const;
                 int bodySize () const;
                 int appendAckSize () const;
-                int maxSize () const;
+                int bufferSize () const;
 
                 void setID (uint32_t id);
                 void setSequenceNumber (uint32_t seq);
@@ -169,6 +169,9 @@ namespace Scaffold
                 void pushHeader ();
                 void popHeader ();
 
+                void pushMsgID ();
+                void popMsgID ();
+
                 void pushBlock (uint8_t repetitions);
                 void popBlock (uint8_t &repetitions);
 
@@ -177,8 +180,8 @@ namespace Scaffold
                 void popVariable1 (std::vector <uint8_t> &buf, uint8_t &size);
                 void popVariable2 (std::vector <uint8_t> &buf, uint16_t &size);
 
-                pair <const char*, size_t> sendBuffer () const;
-                pair <char*, size_t> recvBuffer () const;
+                pair <const char*, size_t> readBuffer () const;
+                pair <char*, size_t> writeBuffer () const;
 
                 void clear ();
 
@@ -186,8 +189,6 @@ namespace Scaffold
 
             private:
                 int get_priority_ (uint32_t id);
-                void push_msg_id_ ();
-                void pop_msg_id_ ();
 
             private:
                 shared_ptr <ByteBuffer> data_;

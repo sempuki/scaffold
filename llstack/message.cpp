@@ -417,8 +417,7 @@ namespace Scaffold
         {
             assert (end_ - begin_ > MESSAGE_HEADER_SIZE);
 
-            return MESSAGE_HEADER_SIZE + (begin_[MESSAGE_EXTRA_HEADER])? 
-                begin_[MESSAGE_EXTRA_HEADER] : 0;
+            return MESSAGE_HEADER_SIZE + begin_[MESSAGE_EXTRA_HEADER];
         }
 
         int Message::bodySize () const
@@ -428,10 +427,10 @@ namespace Scaffold
 
         int Message::appendAckSize () const
         {
-            return *(end_ - 1);
+            return (flags_ & ACK_FLAG)? *(end_ - 1) : 0;
         }
 
-        int Message::maxSize () const
+        int Message::bufferSize () const
         {
             return max_ - begin_;
         }
@@ -578,8 +577,6 @@ namespace Scaffold
             push (flags_);
             pushBigEndian (seq_);
             push (extra);
-
-            push_msg_id_ ();
         }
 
         void Message::popHeader ()
@@ -589,8 +586,68 @@ namespace Scaffold
             pop (flags_);
             popBigEndian (seq_);
             pop (extra);
+        }
 
-            pop_msg_id_ ();
+        void Message::pushMsgID ()
+        {
+            switch (priority_)
+            {
+                case PacketInfo::HIGH: 
+                    pushBigEndian <uint8_t> (id_ | 0x00);
+                    break;
+
+                case PacketInfo::MEDIUM: 
+                    pushBigEndian <uint16_t> (id_ | 0xFF00);
+                    break;
+
+                case PacketInfo::LOW: 
+                    pushBigEndian <uint32_t> (id_ | 0xFFFF0000);
+                    break;
+
+                case PacketInfo::FIXED: 
+                    pushBigEndian <uint32_t> (id_ | 0xFFFFFF00);
+                    break;
+
+                case PacketInfo::ERROR:
+                    cerr << "bad priority!" << endl;
+                    break;
+            }
+        }
+
+        void Message::popMsgID ()
+        {
+            uint32_t quad; getBigEndian (quad);
+
+            if ((quad & 0xFF000000) == 0xFF000000)
+            {
+                if ((quad & 0xFFFF0000) == 0xFFFF0000)
+                {
+                    if ((quad & 0xFFFFFF00) == 0xFFFFFF00)
+                    {
+                        id_ = quad & 0xFFFFFFFF;
+                        priority_ = PacketInfo::FIXED;
+                        skip <uint32_t> ();
+                    }
+                    else
+                    {
+                        id_ = quad & 0xFFFFFFFF;
+                        priority_ = PacketInfo::LOW;
+                        skip <uint32_t> ();
+                    }
+                }
+                else
+                {
+                    id_ = (quad & 0xFFFF0000) >> 16;
+                    priority_ = PacketInfo::MEDIUM;
+                    skip <uint16_t> ();
+                }
+            }
+            else
+            {
+                id_ = (quad & 0xFF000000) >> 24;
+                priority_ = PacketInfo::HIGH;
+                skip <uint8_t> ();
+            }
         }
 
         void Message::pushBlock (uint8_t repetitions) 
@@ -645,12 +702,12 @@ namespace Scaffold
             advance (size);
         }
 
-        pair <const char*, size_t> Message::sendBuffer () const
+        pair <const char*, size_t> Message::readBuffer () const
         {
             return make_pair ((const char *)begin_, end_ - begin_);
         }
                 
-        pair <char*, size_t> Message::recvBuffer () const
+        pair <char*, size_t> Message::writeBuffer () const
         {
             return make_pair ((char *)begin_, max_ - begin_);
         }
@@ -683,68 +740,6 @@ namespace Scaffold
                 return PacketInfo::LOW;
             else
                 return PacketInfo::FIXED;
-        }
-
-        void Message::push_msg_id_ ()
-        {
-            switch (priority_)
-            {
-                case PacketInfo::HIGH: 
-                    pushBigEndian <uint8_t> (id_ | 0x00);
-                    break;
-
-                case PacketInfo::MEDIUM: 
-                    pushBigEndian <uint16_t> (id_ | 0xFF00);
-                    break;
-
-                case PacketInfo::LOW: 
-                    pushBigEndian <uint32_t> (id_ | 0xFFFF0000);
-                    break;
-
-                case PacketInfo::FIXED: 
-                    pushBigEndian <uint32_t> (id_ | 0xFFFFFF00);
-                    break;
-
-                case PacketInfo::ERROR:
-                    cerr << "bad priority!" << endl;
-                    break;
-            }
-        }
-
-        void Message::pop_msg_id_ ()
-        {
-            uint32_t quad; getBigEndian (quad);
-
-            if ((quad & 0xFF000000) == 0xFF000000)
-            {
-                if ((quad & 0xFFFF0000) == 0xFFFF0000)
-                {
-                    if ((quad & 0xFFFFFF00) == 0xFFFFFF00)
-                    {
-                        id_ = quad & 0xFFFFFFFF;
-                        priority_ = PacketInfo::FIXED;
-                        skip <uint32_t> ();
-                    }
-                    else
-                    {
-                        id_ = quad & 0xFFFFFFFF;
-                        priority_ = PacketInfo::LOW;
-                        skip <uint32_t> ();
-                    }
-                }
-                else
-                {
-                    id_ = quad & 0xFFFF0000;
-                    priority_ = PacketInfo::MEDIUM;
-                    skip <uint16_t> ();
-                }
-            }
-            else
-            {
-                id_ = quad & 0xFF000000;
-                priority_ = PacketInfo::HIGH;
-                skip <uint8_t> ();
-            }
         }
 
         //=============================================================================

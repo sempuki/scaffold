@@ -8,7 +8,7 @@
 #include "xmlrpc.hpp"
 
 #include "llstack/provider.hpp"
-#include "llstack/zerocode.h"
+#include "llstack/datacoding.hpp"
 
 #include <QObject>
 #include <QVariant>
@@ -481,6 +481,7 @@ namespace Scaffold
 
             m.setSequenceNumber (send_sequence_++);
             m.pushHeader ();
+            m.pushMsgID ();
             
             m.push (streamparam_.circuit_code);
             m.push (streamparam_.session_id);
@@ -495,6 +496,7 @@ namespace Scaffold
 
             m.setSequenceNumber (send_sequence_++);
             m.pushHeader ();
+            m.pushMsgID ();
             
             m.push (streamparam_.agent_id);
             m.push (streamparam_.session_id);
@@ -509,6 +511,7 @@ namespace Scaffold
 
             m.setSequenceNumber (send_sequence_++);
             m.pushHeader ();
+            m.pushMsgID ();
 
             m.push (streamparam_.agent_id);
             m.push (streamparam_.session_id);
@@ -534,6 +537,7 @@ namespace Scaffold
 
             m.setSequenceNumber (send_sequence_++);
             m.pushHeader ();
+            m.pushMsgID ();
             
             m.push (streamparam_.agent_id);
             m.push (streamparam_.session_id);
@@ -557,6 +561,7 @@ namespace Scaffold
 
             m.setSequenceNumber (send_sequence_++);
             m.pushHeader ();
+            m.pushMsgID ();
             
             m.push (streamparam_.agent_id);
             m.push (streamparam_.session_id);
@@ -621,7 +626,7 @@ namespace Scaffold
             if (!send_handle_acking_ (m))
                 return false;
 
-            pair <const char *, size_t> buf = m.sendBuffer ();
+            pair <const char *, size_t> buf = m.readBuffer ();
             int size = static_cast <int> (udp_.write (buf.first, buf.second));
 
             return true;
@@ -651,15 +656,25 @@ namespace Scaffold
         {
             // zero-encode this packet
             if (m.getFlags() & ZERO_CODE_FLAG)
-                ; // TODO
+            {
+                using Data::runlength::encode;
+
+                uint8_t *body = (uint8_t *)(m.writeBuffer().first) + m.headerSize(); 
+                uint8_t *end = body + m.bodySize();
+                
+                if (!encode (body, end, 0))
+                    m.disableFlags (ZERO_CODE_FLAG);
+            }
 
             return true;
         }
 
         bool Stream::recv_message_ (Message &m)
         {
-            pair <char *, size_t> buf = m.recvBuffer ();
+            pair <char *, size_t> buf = m.writeBuffer ();
             int size = static_cast <int> (udp_.readDatagram (buf.first, buf.second));
+
+            cout << "----------------------------------" << endl;
 
             if (size > MESSAGE_HEADER_SIZE)
             {
@@ -680,6 +695,9 @@ namespace Scaffold
                 // zero-decode this packet
                 if (!recv_handle_coding_ (m))
                     return false;
+
+                // load decoded message ID into field
+                m.popMsgID ();
 
                 // notify listeners
                 subscribers_ [m.getID()] (m);
@@ -764,7 +782,15 @@ namespace Scaffold
         bool Stream::recv_handle_coding_ (Message &m)
         {
             if (m.getFlags() & ZERO_CODE_FLAG)
-                ; // TODO
+            {
+                using Data::runlength::decode;
+
+                uint8_t *body = (uint8_t *)(m.writeBuffer().first) + m.headerSize(); 
+                uint8_t *end = body + m.bodySize();
+
+                if (!decode (body, end, 0))
+                    m.disableFlags (ZERO_CODE_FLAG);
+            }
 
             return true;
         }
