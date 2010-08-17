@@ -472,7 +472,7 @@ namespace Scaffold
                     break;
 
                 case Append: 
-                    pos_ = end_ - appendAckSize() - 1 + pos;
+                    pos_ = end_ - (4 * appendAckSize()) - 1 + pos;
                     break;
 
                 case End: 

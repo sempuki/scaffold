@@ -523,7 +523,7 @@ namespace Scaffold
 
         void Stream::sendAgentThrottlePacket ()
         {
-            Message m (factory_.create (AgentThrottle, RELIABLE_FLAG | ZERO_CODE_FLAG));
+            Message m (factory_.create (AgentThrottle, RELIABLE_FLAG));// | ZERO_CODE_FLAG));
             prepare_message_ (m);
 
             m.push (streamparam_.agent_id);
@@ -669,9 +669,9 @@ namespace Scaffold
             if (m.getFlags() & RELIABLE_FLAG)
                 resend_enqueue_ (m);
 
-            // send waiting acks
-            if (acks_.size())
-                ack_append_ (m);
+            // TODO: append waiting acks
+            //if (acks_.size())
+            //    ack_append_ (m);
 
             return true;
         }
@@ -799,7 +799,7 @@ namespace Scaffold
                     int nack = m.appendAckSize();
 
                     while (nack--)
-                        m.pop (seq), resend_dequeue_ (seq);
+                        m.popBigEndian (seq), resend_dequeue_ (seq);
 
                     m.seek (prev, Message::Begin);
                 }
@@ -832,13 +832,11 @@ namespace Scaffold
             m.setAge (0);
             m.enableFlags (RESEND_FLAG);
 
-            cout << "insert: " << m.getSequence() << endl;
             resend_.insert (make_pair (m.getSequence(), m));
         } 
 
         void Stream::resend_dequeue_ (uint32_t seq)
         {
-            cout << "remove: " << seq << endl;
             resend_.erase (seq);
         }
 
