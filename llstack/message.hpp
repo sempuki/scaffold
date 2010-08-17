@@ -1,10 +1,10 @@
-/* llparser.hpp -- parse LL message template file
+/* message.hpp -- create message-based abstraction for LLUDP messages_template.txt
  *
  *			Ryan McDougall
  */
 
-#ifndef LLPARSER_H_
-#define LLPARSER_H_
+#ifndef MESSAGE_H_
+#define MESSAGE_H_
 
 #include <QtEndian>
 #include <QVector3D>
@@ -257,4 +257,4 @@ namespace Scaffold
     }
 }
 
-#endif //LLPARSER_H_
+#endif //MESSAGE_H_

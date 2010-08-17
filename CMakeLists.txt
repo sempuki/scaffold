@@ -24,6 +24,7 @@ add_executable (test
     xmlrpc.cpp
     capabilities.cpp 
     application.cpp
+    task.cpp
     llstack/uuid.cpp
     llstack/message.cpp
     llstack/messageid.cpp

@@ -1,4 +1,4 @@
-/* scene.cpp -- 
+/* scene.cpp -- scene management
  *
  *			Ryan McDougall
  */

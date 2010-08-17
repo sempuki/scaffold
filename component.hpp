@@ -1,4 +1,4 @@
-/* model.hpp -- exported function header
+/* component.hpp -- data model for entity components
  *
  *			Ryan McDougall
  */

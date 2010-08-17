@@ -1,4 +1,4 @@
-/* application.hpp -- 
+/* application.hpp -- application level abstraction
  *
  *			Ryan McDougall
  */

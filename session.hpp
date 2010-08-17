@@ -1,4 +1,4 @@
-/* module.h -- exported function header
+/* session.h -- session and stream abstraction
  *
  *			Ryan McDougall
  */

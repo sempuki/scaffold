@@ -1,4 +1,4 @@
-/* tag.h -- exported function header
+/* tag.hpp -- identifies class by string name or 4-byte integer
  *
  *			Ryan McDougall
  */

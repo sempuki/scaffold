@@ -1,4 +1,4 @@
-/* module.hpp -- 
+/* module.hpp -- interfaces for plugable application modules
  *
  *			Ryan McDougall
  */

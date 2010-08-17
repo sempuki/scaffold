@@ -1,4 +1,4 @@
-/* application.cpp -- 
+/* application.cpp -- application level abstraction
  *
  *			Ryan McDougall
  */
@@ -59,7 +59,7 @@ namespace Scaffold
         thread_.wait (1000);
 
         do_module_finalize ();
-        //do_module_delete ();
+        do_module_delete ();
         do_worker_delete ();
     }
 

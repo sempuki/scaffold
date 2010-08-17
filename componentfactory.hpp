@@ -1,4 +1,4 @@
-/* model.hpp -- exported function header
+/* componentfactory.hpp -- factory to create and decorate entities with components
  *
  *			Ryan McDougall
  */

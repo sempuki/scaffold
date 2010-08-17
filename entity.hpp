@@ -1,4 +1,4 @@
-/* model.hpp -- exported function header
+/* entity.hpp -- application entity abstraction
  *
  *			Ryan McDougall
  */

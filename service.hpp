@@ -1,4 +1,4 @@
-/* module.h -- exported function header
+/* service.h -- abstraction for application services
  *
  *			Ryan McDougall
  */

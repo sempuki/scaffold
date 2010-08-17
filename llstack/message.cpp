@@ -1,4 +1,4 @@
-/* main.cpp -- main module
+/* message.cpp -- create message-based abstraction for LLUDP messages_template.txt
  *
  *			Ryan McDougall
  */

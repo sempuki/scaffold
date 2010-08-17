@@ -1,4 +1,4 @@
-/* model.hpp -- exported function header
+/* model.hpp -- all Data Model headers
  *
  *			Ryan McDougall
  */

@@ -1,4 +1,4 @@
-/* tag.cpp -- main module
+/* tag.cpp -- identifies class by string name or 4-byte integer
  *
  *			Ryan McDougall
  */

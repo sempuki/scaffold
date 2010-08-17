@@ -1,4 +1,4 @@
-/* subscription.hpp -- exported function header
+/* subscription.hpp -- subscribe component of publish/subscribe architecture
  *
  *			Ryan McDougall
  */

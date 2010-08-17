@@ -112,7 +112,9 @@ struct Logic : public Module
                     state = 0;
 
                     cout << "quitting" << endl;
-                    QApplication::exit();
+                    
+                    stream->sendLogoutRequest ();
+                    QApplication::exit ();
                 }
                 break;
 

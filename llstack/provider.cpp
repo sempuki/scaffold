@@ -1,4 +1,4 @@
-/* llprovider.cpp -- main module
+/* provider.cpp -- session and stream provider for LLUDP
  *
  *			Ryan McDougall
  */
@@ -580,6 +580,17 @@ namespace Scaffold
             m.pushBlock (param.size());
             for_each (param.begin(), param.end(), 
                     bind (&Message::push <string>, &m, _1));
+
+            send_message_ (m);
+        }
+                
+        void Stream::sendLogoutRequest ()
+        {
+            Message m (factory_.create (LogoutRequest));
+            prepare_message_ (m);
+
+            m.push (streamparam_.agent_id);
+            m.push (streamparam_.session_id);
 
             send_message_ (m);
         }

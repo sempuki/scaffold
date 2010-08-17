@@ -1,4 +1,4 @@
-/* task.hpp -- 
+/* task.hpp -- abstraction for task-based work queues
  *
  *			Ryan McDougall
  */
@@ -31,90 +31,25 @@ namespace Scaffold
             Callable    work;
             List        dependants;
 
-            Task (Callable t) 
-                : work (t) 
-            {}
-
-            Task *chain (Task *t) 
-            { 
-                dependants.push_back (t); 
-                return this;
-            }
+            Task (Callable t);
+            Task *chain (Task *t);
         };
 
         class Scheduler
         {
             public:
-                Scheduler ()
-                {
-                }
+                Scheduler ();
 
-                void enqueue (Task *task)
-                {
-                    Locker mtx (queue_lock_);
-
-                    enqueue_ (task);
-                }
-
-                void enqueue (const Task::List &list)
-                {
-                    Locker mtx (queue_lock_);
-
-                    enqueue_ (list);
-                }
-
-                int length ()
-                {
-                    return queue_.size();
-                }
-
-                void dispatch (frame_delta_t delta)
-                {
-                    if (queue_.size())
-                    {
-                        Task *head = queue_.front();
-
-                        execute_ (head, delta);
-
-                        if (head->dependants.size())
-                            enqueue_ (head->dependants);
-
-                        dispose_ (head);
-
-                        queue_.pop_front();
-                    }
-                }
+                void enqueue (Task *task);
+                void enqueue (const Task::List &list);
+                void dispatch (frame_delta_t delta);
+                int length ();
 
             private:
-                void enqueue_ (Task *task)
-                {
-                    task->state = Task::READY;
-
-                    queue_.push_back (task);
-                }
-
-                void enqueue_ (const Task::List &list)
-                {
-                    Task::List::const_iterator i = list.begin();
-                    Task::List::const_iterator e = list.end();
-                    for (; i != e; ++i) enqueue_ (*i);
-                }
-
-                void execute_ (Task *head, frame_delta_t delta)
-                {
-                    head->state = Task::RUNNING;
-
-                    head->work (delta);
-
-                    head->state = Task::COMPLETE;
-                }
-
-                void dispose_ (Task *head) 
-                {
-                    head->state = Task::FINAL;
-
-                    delete head;
-                }
+                void enqueue_ (Task *task);
+                void enqueue_ (const Task::List &list);
+                void execute_ (Task *head, frame_delta_t delta);
+                void dispose_ (Task *head);
 
             private:
                 Task::List  queue_;

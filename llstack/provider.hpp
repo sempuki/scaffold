@@ -1,9 +1,9 @@
-/* llprovider.hpp -- parameters for LL protocols
+/* provider.hpp -- session and stream provider for LLUDP
  *
  */
 
-#ifndef LLPROVIDER_H_
-#define LLPROVIDER_H_
+#ifndef PROVIDER_H_
+#define PROVIDER_H_
 
 #include "stdheaders.hpp"
 #include "application.hpp"
@@ -194,6 +194,7 @@ namespace Scaffold
                 void sendAgentWearablesRequestPacket ();
                 void sendRexStartupPacket (const string &state); 
                 void sendGenericMessage (const string &method, const Message::GenericParams &parms);
+                void sendLogoutRequest ();
 
             protected slots:
                 void on_host_found ();
