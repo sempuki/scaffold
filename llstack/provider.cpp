@@ -386,11 +386,12 @@ namespace Scaffold
 
         Stream::Stream () : 
             Connectivity::Stream ("ll-stream"), 
-            send_sequence_ (1),
-            recv_sequence_ (0),
+            connected_ (false),
+            udp_ (this), timer_ (this),
             idmap_ (get_msg_id_map ()),
             names_ (get_msg_name_map ()),
-            udp_ (this)
+            send_sequence_ (1),
+            ack_age_ (0)
         {
             QObject::connect (&udp_, SIGNAL(hostFound()), this, SLOT(on_host_found()));
             QObject::connect (&udp_, SIGNAL(connected()), this, SLOT(on_connected()));
@@ -401,6 +402,9 @@ namespace Scaffold
                     this, SLOT(on_state_changed(QAbstractSocket::SocketState)));
             QObject::connect (&udp_, SIGNAL(error(QAbstractSocket::SocketError)), 
                     this, SLOT(on_error(QAbstractSocket::SocketError)));
+
+            QObject::connect (&timer_, SIGNAL(timeout()), this, SLOT(on_timeout()));
+            timer_.start (100);
         }
 
         Stream::~Stream ()
@@ -475,13 +479,28 @@ namespace Scaffold
             subscribers_[id] += listen;
         }
 
+        void Stream::sendAckPacket ()
+        {
+            using std::min;
+
+            Message m (factory_.create (PacketAck));
+            prepare_message_ (m);
+
+            uint8_t nack = min (acks_.size(), (size_t) 255);
+            Message::SequenceSet::iterator i = acks_.begin();
+
+            m.pushBlock (nack);
+            while (nack--) m.push (*i++);
+
+            acks_.erase (acks_.begin(), i);
+
+            send_message_ (m);
+        }
+
         void Stream::sendUseCircuitCodePacket ()
         {
             Message m (factory_.create (UseCircuitCode, RELIABLE_FLAG));
-
-            m.setSequenceNumber (send_sequence_++);
-            m.pushHeader ();
-            m.pushMsgID ();
+            prepare_message_ (m);
             
             m.push (streamparam_.circuit_code);
             m.push (streamparam_.session_id);
@@ -493,10 +512,7 @@ namespace Scaffold
         void Stream::sendCompleteAgentMovementPacket ()
         {
             Message m (factory_.create (CompleteAgentMovement, RELIABLE_FLAG));
-
-            m.setSequenceNumber (send_sequence_++);
-            m.pushHeader ();
-            m.pushMsgID ();
+            prepare_message_ (m);
             
             m.push (streamparam_.agent_id);
             m.push (streamparam_.session_id);
@@ -508,10 +524,7 @@ namespace Scaffold
         void Stream::sendAgentThrottlePacket ()
         {
             Message m (factory_.create (AgentThrottle, RELIABLE_FLAG | ZERO_CODE_FLAG));
-
-            m.setSequenceNumber (send_sequence_++);
-            m.pushHeader ();
-            m.pushMsgID ();
+            prepare_message_ (m);
 
             m.push (streamparam_.agent_id);
             m.push (streamparam_.session_id);
@@ -534,10 +547,7 @@ namespace Scaffold
         void Stream::sendAgentWearablesRequestPacket ()
         {
             Message m (factory_.create (AgentWearablesRequest, RELIABLE_FLAG));
-
-            m.setSequenceNumber (send_sequence_++);
-            m.pushHeader ();
-            m.pushMsgID ();
+            prepare_message_ (m);
             
             m.push (streamparam_.agent_id);
             m.push (streamparam_.session_id);
@@ -558,11 +568,8 @@ namespace Scaffold
         void Stream::sendGenericMessage (const string &method, const Message::GenericParams &param)
         {
             Message m (factory_.create (GenericMessage, RELIABLE_FLAG | ZERO_CODE_FLAG));
+            prepare_message_ (m);
 
-            m.setSequenceNumber (send_sequence_++);
-            m.pushHeader ();
-            m.pushMsgID ();
-            
             m.push (streamparam_.agent_id);
             m.push (streamparam_.session_id);
             m.push (UUID::random ()); // TransactionID
@@ -617,7 +624,25 @@ namespace Scaffold
         {
             cout << "udp error: " << err << endl;
         }
+
+        void Stream::on_timeout ()
+        {
+            static int msec = timer_.interval ();
+
+            // reliable resending
+            resend_process_ (msec);
+            
+            // send waiting acks
+            ack_process_ (msec);
+        }
                 
+        void Stream::prepare_message_ (Message &m)
+        {
+            m.setSequenceNumber (send_sequence_++);
+            m.pushHeader ();
+            m.pushMsgID ();
+        }
+
         bool Stream::send_message_ (Message &m)
         {
             if (!send_handle_coding_ (m))
@@ -628,6 +653,8 @@ namespace Scaffold
 
             pair <const char *, size_t> buf = m.readBuffer ();
             int size = static_cast <int> (udp_.write (buf.first, buf.second));
+
+            cout << "send message: " << names_ [m.getID()] << endl;
 
             return true;
         }
@@ -642,12 +669,9 @@ namespace Scaffold
             if (m.getFlags() & RELIABLE_FLAG)
                 resend_enqueue_ (m);
 
-            // ack appending
-            if (acking_.size())
+            // send waiting acks
+            if (acks_.size())
                 ack_append_ (m);
-
-            // reliable resending
-            resend_process_ ();
 
             return true;
         }
@@ -659,10 +683,13 @@ namespace Scaffold
             {
                 using Data::runlength::encode;
 
-                uint8_t *body = (uint8_t *)(m.writeBuffer().first) + m.headerSize(); 
+                int encsize;
+                uint8_t *body = (uint8_t *) (m.writeBuffer().first) + m.headerSize(); 
                 uint8_t *end = body + m.bodySize();
-                
-                if (!encode (body, end, 0))
+
+                if (encsize = encode (body, end, 0) > 0)
+                    m.setSize (m.headerSize() + encsize);
+                else
                     m.disableFlags (ZERO_CODE_FLAG);
             }
 
@@ -674,8 +701,6 @@ namespace Scaffold
             pair <char *, size_t> buf = m.writeBuffer ();
             int size = static_cast <int> (udp_.readDatagram (buf.first, buf.second));
 
-            cout << "----------------------------------" << endl;
-
             if (size > MESSAGE_HEADER_SIZE)
             {
                 // set known message length
@@ -683,6 +708,10 @@ namespace Scaffold
 
                 // load header into fields
                 m.popHeader ();
+
+                // load uncoded message ID into field
+                if (~m.getFlags() & ZERO_CODE_FLAG)
+                    m.popMsgID ();
 
                 // drop previously seen sequence numbers
                 if (!recv_handle_duplicate_ (m))
@@ -697,13 +726,14 @@ namespace Scaffold
                     return false;
 
                 // load decoded message ID into field
-                m.popMsgID ();
+                if (m.getFlags() & ZERO_CODE_FLAG)
+                    m.popMsgID ();
 
                 // notify listeners
                 subscribers_ [m.getID()] (m);
             }
 
-            cout << "message: " << names_ [m.getID()] << endl;
+            cout << "recv message: " << names_ [m.getID()] << endl;
             
             return true;
         }
@@ -745,15 +775,15 @@ namespace Scaffold
             {
                 uint8_t blocks;
                 uint32_t seq;
-                
-                for (m.pop (blocks); blocks; --blocks)
-                {
-                    m.pop (seq);
-                    resend_dequeue_ (seq);
-                }
+
+                m.pop (blocks);
+                while (blocks--)
+                    m.pop (seq), resend_dequeue_ (seq);
 
                 return false;
             }
+
+            // appended acks
             else 
             {
                 // is reliable; requires acknowledgement
@@ -763,20 +793,19 @@ namespace Scaffold
                 // contains appended acks
                 if (m.getFlags() & ACK_FLAG)
                 {
-                    int prev = m.seek (0, Message::Append);
-
                     uint32_t seq;
-                    for (int n = m.appendAckSize(); n; --n)
-                    {
-                        m.pop (seq);
-                        resend_dequeue_ (seq);
-                    }
+
+                    int prev = m.seek (0, Message::Append);
+                    int nack = m.appendAckSize();
+
+                    while (nack--)
+                        m.pop (seq), resend_dequeue_ (seq);
 
                     m.seek (prev, Message::Begin);
                 }
+            
+                return true;
             }
-                
-            return true;
         }
                 
         bool Stream::recv_handle_coding_ (Message &m)
@@ -785,10 +814,13 @@ namespace Scaffold
             {
                 using Data::runlength::decode;
 
-                uint8_t *body = (uint8_t *)(m.writeBuffer().first) + m.headerSize(); 
+                int decsize;
+                uint8_t *body = (uint8_t *) (m.writeBuffer().first) + m.headerSize(); 
                 uint8_t *end = body + m.bodySize();
 
-                if (!decode (body, end, 0))
+                if (decsize = decode (body, end, 0) > 0)
+                    m.setSize (m.headerSize() + decsize);
+                else
                     m.disableFlags (ZERO_CODE_FLAG);
             }
 
@@ -797,47 +829,66 @@ namespace Scaffold
 
         void Stream::resend_enqueue_ (Message &m)
         {
-            using std::time;
-
-            m.setAge (time (0));
+            m.setAge (0);
             m.enableFlags (RESEND_FLAG);
 
+            cout << "insert: " << m.getSequence() << endl;
             resend_.insert (make_pair (m.getSequence(), m));
         } 
 
         void Stream::resend_dequeue_ (uint32_t seq)
         {
+            cout << "remove: " << seq << endl;
             resend_.erase (seq);
+        }
+
+        void Stream::resend_process_ (int msec)
+        {
+            Message::Map::iterator i = resend_.begin();
+            Message::Map::iterator e = resend_.end();
+
+            for (; i != e; ++i)
+            {
+                if (i->second.getAge() > MESSAGE_RESEND_AGE)
+                {
+                    send_message_ (i->second);
+                    i->second.setAge (0);
+                }
+                else
+                    i->second.age (msec);
+            }
         }
 
         void Stream::ack_enqueue_ (uint32_t seq)
         {
-            acking_.insert (seq);
+            acks_.insert (seq);
+        }
+
+        void Stream::ack_dequeue_ (uint32_t seq)
+        {
+            acks_.erase (seq);
         }
 
         void Stream::ack_append_ (Message &m)
         {
-            // TODO send AckPacket if appended ack is too large
             // TODO don't overflow the maximum buffer size
-            // comment: naali doesn't do appending, only dedicated acks
-
-            for_each (acking_.begin(), acking_.end(), 
+            
+            for_each (acks_.begin(), acks_.end(), 
                     bind (&Message::push <uint32_t>, &m, _1));
-            m.push <uint8_t> (acking_.size());
+            m.push <uint8_t> (acks_.size());
 
-            acking_.erase (acking_.begin(), acking_.end());
+            acks_.erase (acks_.begin(), acks_.end());
         }
                 
-        void Stream::resend_process_ ()
+        void Stream::ack_process_ (int msec)
         {
-            using std::time;
+            ack_age_ += msec;
 
-            Message::Map::iterator i = resend_.begin();
-            Message::Map::iterator e = resend_.end();
-
-            for (time_t now = time (0); i != e; ++i)
-                if (now - i->first > MESSAGE_RESEND_AGE)
-                    send_message_ (i->second);
+            if (acks_.size() && (ack_age_ > MESSAGE_ACK_AGE))
+            {
+                sendAckPacket ();
+                ack_age_ = 0;
+            }
         }
 
         //=========================================================================

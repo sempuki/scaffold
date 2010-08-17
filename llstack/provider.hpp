@@ -187,6 +187,7 @@ namespace Scaffold
                 void listen (msg_id_t id, Message::Listener listen);
 
             public:
+                void sendAckPacket ();
                 void sendUseCircuitCodePacket ();
                 void sendCompleteAgentMovementPacket ();
                 void sendAgentThrottlePacket ();
@@ -202,8 +203,11 @@ namespace Scaffold
                 void on_bytes_written (qint64 bytes);
                 void on_state_changed (QAbstractSocket::SocketState state);
                 void on_error (QAbstractSocket::SocketError);
+                void on_timeout ();
 
             private:
+                void prepare_message_ (Message &m);
+
                 bool send_message_ (Message &m);
                 bool send_handle_acking_ (Message &m);
                 bool send_handle_coding_ (Message &m);
@@ -215,30 +219,33 @@ namespace Scaffold
 
                 void resend_enqueue_ (Message &m);
                 void resend_dequeue_ (uint32_t seq);
-                void resend_process_ ();
+                void resend_process_ (int msec);
 
                 void ack_enqueue_ (uint32_t seq);
+                void ack_dequeue_ (uint32_t seq);
                 void ack_append_ (Message &m);
+                void ack_process_ (int msec);
 
             private:
                 bool    connected_;
 
-                uint32_t    send_sequence_;
-                uint32_t    recv_sequence_;
+                MessageFactory          factory_;
+                QUdpSocket              udp_;
+                QTimer                  timer_;
 
                 Message::NameMap        names_;
                 Message::IDMap          idmap_;
-                Message::SequenceSet    acking_;
+                Message::SequenceSet    acks_;
                 Message::SequenceSet    received_;
                 Message::Map            resend_;
 
                 Message::SubscriptionMap    subscribers_;
 
-                MessageFactory          factory_;
-                QUdpSocket              udp_;
-
                 StreamParameters        streamparam_;
                 SessionParameters       sessionparam_;
+                
+                uint32_t    send_sequence_;
+                int         ack_age_;
         };
         
         //=========================================================================

@@ -17,7 +17,8 @@ namespace Scaffold
         const float MAX_BPS (1000000.0f);
         const size_t MAX_MESSAGE_SIZE (2048);
         const size_t MAX_MESSAGE_APPEND_ACKS (100);
-        const size_t MESSAGE_RESEND_AGE (5);
+        const size_t MESSAGE_ACK_AGE (1000);
+        const size_t MESSAGE_RESEND_AGE (5000);
         const size_t MESSAGE_WINDOW (256);
         const size_t MESSAGE_POOL_SIZE (16);
         const size_t MESSAGE_HEADER_SIZE (6);
@@ -102,7 +103,7 @@ namespace Scaffold
                 {
                     bool operator() (const Message &l, const Message &r)
                     {
-                        return l.age() < r.age();
+                        return l.getAge() < r.getAge();
                     }
                 };
                 
@@ -127,23 +128,24 @@ namespace Scaffold
                 uint32_t getSequence () const;
                 uint8_t getFlags () const;
 
-                time_t age () const;
+                void age (int msec);
+                void setAge (int msec);
+                int getAge () const;
 
                 int priority () const;
+
                 int size () const;
                 int headerSize () const;
                 int bodySize () const;
                 int appendAckSize () const;
                 int bufferSize () const;
 
+                void setSize (int size);
                 void setID (uint32_t id);
                 void setSequenceNumber (uint32_t seq);
                 void setFlags (uint8_t flags);
                 void enableFlags (uint8_t flags);
                 void disableFlags (uint8_t flags);
-
-                void setAge (time_t age);
-                void setSize (int size);
 
                 int seek (int pos, SeekType dir);
                 void advance (int pos);
@@ -195,9 +197,9 @@ namespace Scaffold
 
                 uint32_t    id_;
                 uint32_t    seq_;
-                int         priority_;
                 uint8_t     flags_;
-                time_t      age_;
+                int         priority_;
+                int         age_;
 
                 uint8_t     *begin_;
                 uint8_t     *pos_;

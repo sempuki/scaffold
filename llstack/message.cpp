@@ -389,9 +389,9 @@ namespace Scaffold
             data_ (d), 
             id_ (id), 
             seq_ (seq), 
-            priority_ (get_priority_ (id_)),
             flags_ (flags),
             age_ (0),
+            priority_ (get_priority_ (id_)),
             begin_ (d->data), 
             pos_ (begin_), 
             end_ (begin_), 
@@ -402,7 +402,10 @@ namespace Scaffold
         uint32_t Message::getID () const { return id_; }
         uint32_t Message::getSequence () const { return seq_; }
         uint8_t Message::getFlags () const { return flags_; }
-        time_t Message::age () const { return age_; }
+
+        void Message::age (int msec) { age_ += msec; }
+        void Message::setAge (int msec) { age_ = msec; }
+        int Message::getAge () const { return age_; }
         int Message::priority () const { return priority_; }
                 
         int Message::size () const
@@ -448,8 +451,6 @@ namespace Scaffold
         void Message::setFlags (uint8_t flags) { flags_ = flags; }
         void Message::enableFlags (uint8_t flags) { flags_ |= flags; }
         void Message::disableFlags (uint8_t flags) { flags_ &= ~flags; }
-
-        void Message::setAge (time_t age) { age_ = age; }
 
         int Message::seek (int pos, SeekType dir)
         {
