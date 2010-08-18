@@ -33,6 +33,7 @@ add_executable (test
     llplugin/moc_provider.cpp
     llplugin/datacoding.cpp
     uiplugin/provider.cpp
+    viewerplugin/logic.cpp
     moc_xmlrpc.cpp
     moc_capabilities.cpp
     moc_application.cpp

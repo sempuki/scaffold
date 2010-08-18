@@ -10,251 +10,250 @@
 #include <QVector3D>
 #include <QQuaternion>
 
-namespace Scaffold
+namespace LLPlugin
 {
-    namespace LLPlugin
-    {
-        const float MAX_BPS (1000000.0f);
-        const size_t MAX_MESSAGE_SIZE (2048);
-        const size_t MAX_MESSAGE_APPEND_ACKS (100);
-        const size_t MESSAGE_ACK_AGE (1000);
-        const size_t MESSAGE_RESEND_AGE (5000);
-        const size_t MESSAGE_WINDOW (256);
-        const size_t MESSAGE_POOL_SIZE (16);
-        const size_t MESSAGE_HEADER_SIZE (6);
-        const size_t MESSAGE_EXTRA_HEADER (5);
-        const uint8_t ZERO_CODE_FLAG (0x80);
-        const uint8_t RELIABLE_FLAG (0x40);
-        const uint8_t RESEND_FLAG (0x20);
-        const uint8_t ACK_FLAG (0x10);
+    using namespace Scaffold;
 
-        struct VariableInfo
-        {
-            enum 
-            { 
-                ERROR, BOOL, S8, S16, S32, S64, U8, U16, U32, U64, F32, F64,
-                LLUUID, LLVECTOR3, LLVECTOR3D, LLVECTOR4, LLQUATERION, 
-                IPADDR, IPPORT, FIXED, VARIABLE, VARIABLE1, VARIABLE2 
+    const float MAX_BPS (1000000.0f);
+    const size_t MAX_MESSAGE_SIZE (2048);
+    const size_t MAX_MESSAGE_APPEND_ACKS (100);
+    const size_t MESSAGE_ACK_AGE (1000);
+    const size_t MESSAGE_RESEND_AGE (5000);
+    const size_t MESSAGE_WINDOW (256);
+    const size_t MESSAGE_POOL_SIZE (16);
+    const size_t MESSAGE_HEADER_SIZE (6);
+    const size_t MESSAGE_EXTRA_HEADER (5);
+    const uint8_t ZERO_CODE_FLAG (0x80);
+    const uint8_t RELIABLE_FLAG (0x40);
+    const uint8_t RESEND_FLAG (0x20);
+    const uint8_t ACK_FLAG (0x10);
+
+    struct VariableInfo
+    {
+        enum 
+        { 
+            ERROR, BOOL, S8, S16, S32, S64, U8, U16, U32, U64, F32, F64,
+            LLUUID, LLVECTOR3, LLVECTOR3D, LLVECTOR4, LLQUATERION, 
+            IPADDR, IPPORT, FIXED, VARIABLE, VARIABLE1, VARIABLE2 
+        };
+
+        typedef std::vector <VariableInfo> List;
+
+        string  name;
+        int     type;
+        int     size;
+    };
+
+    struct BlockInfo
+    {
+        enum { ERROR, SINGLE, MULTIPLE, VARIABLE };
+
+        typedef std::vector <BlockInfo> List;
+
+        string  name;
+        int     repetition;
+        int     multiplicy;
+
+        VariableInfo::List variables;
+    };
+
+    struct PacketInfo
+    {
+        enum { ERROR, LOW, MEDIUM, HIGH, FIXED };
+
+        typedef std::vector <PacketInfo> List;
+
+        string      name;
+        uint32_t    id;
+
+        int         priority;
+        bool        trusted;
+        bool        encoded;
+        bool        deprecated;
+
+        BlockInfo::List blocks;
+    };
+
+    struct ByteBuffer
+    {
+        typedef std::vector <ByteBuffer *> Heap;
+        typedef std::set <ByteBuffer *> Set;
+
+        size_t  size;
+        uint8_t *data;
+
+        ByteBuffer (size_t s) : size (s), data (new uint8_t [s]) {}
+        void dispose () { delete [] data; }
+
+        bool operator< (const ByteBuffer &r) { return size < r.size; }
+    };
+
+    class Message 
+    {
+        public:
+            struct SequenceComp
+            {
+                bool operator() (const Message &l, const Message &r)
+                {
+                    return l.getSequence() < r.getSequence();
+                }
             };
 
-            typedef std::vector <VariableInfo> List;
-
-            string  name;
-            int     type;
-            int     size;
-        };
-
-        struct BlockInfo
-        {
-            enum { ERROR, SINGLE, MULTIPLE, VARIABLE };
-
-            typedef std::vector <BlockInfo> List;
-
-            string  name;
-            int     repetition;
-            int     multiplicy;
-
-            VariableInfo::List variables;
-        };
-
-        struct PacketInfo
-        {
-            enum { ERROR, LOW, MEDIUM, HIGH, FIXED };
-
-            typedef std::vector <PacketInfo> List;
-
-            string      name;
-            uint32_t    id;
-
-            int         priority;
-            bool        trusted;
-            bool        encoded;
-            bool        deprecated;
-
-            BlockInfo::List blocks;
-        };
-
-        struct ByteBuffer
-        {
-            typedef std::vector <ByteBuffer *> Heap;
-            typedef std::set <ByteBuffer *> Set;
-
-            size_t  size;
-            uint8_t *data;
-
-            ByteBuffer (size_t s) : size (s), data (new uint8_t [s]) {}
-            void dispose () { delete [] data; }
-
-            bool operator< (const ByteBuffer &r) { return size < r.size; }
-        };
-
-        class Message 
-        {
-            public:
-                struct SequenceComp
+            struct AgeComp
+            {
+                bool operator() (const Message &l, const Message &r)
                 {
-                    bool operator() (const Message &l, const Message &r)
-                    {
-                        return l.getSequence() < r.getSequence();
-                    }
-                };
-                
-                struct AgeComp
-                {
-                    bool operator() (const Message &l, const Message &r)
-                    {
-                        return l.getAge() < r.getAge();
-                    }
-                };
-                
-            public:
-                typedef std::map <uint32_t, Message> Map;
-                typedef std::map <uint32_t, string> NameMap;
-                typedef std::map <string, uint32_t> IDMap;
-                typedef std::set <uint32_t> SequenceSet;
+                    return l.getAge() < r.getAge();
+                }
+            };
 
-                typedef std::vector <string> GenericParams;
+        public:
+            typedef std::map <uint32_t, Message> Map;
+            typedef std::map <uint32_t, string> NameMap;
+            typedef std::map <string, uint32_t> IDMap;
+            typedef std::set <uint32_t> SequenceSet;
 
-                typedef void (Listener) (Message);
-                typedef Subscription <Listener> Signal;
-                typedef std::map <msg_id_t, Signal> SubscriptionMap;
+            typedef std::vector <string> GenericParams;
 
-                enum SeekType { Begin, Body, Curr, Append, End };
+            typedef void (Listener) (Message);
+            typedef Subscription <Listener> Signal;
+            typedef std::map <msg_id_t, Signal> SubscriptionMap;
 
-            public:
-                Message (shared_ptr <ByteBuffer> d, uint32_t id = 0, uint8_t flags = 0, uint32_t seq = 0);
+            enum SeekType { Begin, Body, Curr, Append, End };
 
-                uint32_t getID () const;
-                uint32_t getSequence () const;
-                uint8_t getFlags () const;
+        public:
+            Message (shared_ptr <ByteBuffer> d, uint32_t id = 0, uint8_t flags = 0, uint32_t seq = 0);
 
-                void age (int msec);
-                void setAge (int msec);
-                int getAge () const;
+            uint32_t getID () const;
+            uint32_t getSequence () const;
+            uint8_t getFlags () const;
 
-                int priority () const;
+            void age (int msec);
+            void setAge (int msec);
+            int getAge () const;
 
-                int size () const;
-                int headerSize () const;
-                int bodySize () const;
-                int appendAckSize () const;
-                int bufferSize () const;
+            int priority () const;
 
-                void setSize (int size);
-                void setID (uint32_t id);
-                void setSequenceNumber (uint32_t seq);
-                void setFlags (uint8_t flags);
-                void enableFlags (uint8_t flags);
-                void disableFlags (uint8_t flags);
+            int size () const;
+            int headerSize () const;
+            int bodySize () const;
+            int appendAckSize () const;
+            int bufferSize () const;
 
-                int seek (int pos, SeekType dir);
-                void advance (int pos);
+            void setSize (int size);
+            void setID (uint32_t id);
+            void setSequenceNumber (uint32_t seq);
+            void setFlags (uint8_t flags);
+            void enableFlags (uint8_t flags);
+            void disableFlags (uint8_t flags);
 
-                template <typename T> void skip () { advance (sizeof (T)); }
+            int seek (int pos, SeekType dir);
+            void advance (int pos);
 
-                template <typename T> void put (T value) { T *ptr = (T *)pos_; *ptr = value; }
-                template <typename T> void putBigEndian (T value) { qToBigEndian <T> (value, pos_); } 
-                template <typename T> void putLittleEndian (T value) { qToLittleEndian <T> (value, pos_); } 
+            template <typename T> void skip () { advance (sizeof (T)); }
 
-                template <typename T> void get (T& value) { T *ptr = (T *)pos_; value = *ptr; }
-                template <typename T> void getBigEndian (T& value) { value = qFromBigEndian <T> (pos_); }
-                template <typename T> void getLittleEndian (T& value) { value = qFromLittleEndian <T> (pos_); } 
+            template <typename T> void put (T value) { T *ptr = (T *)pos_; *ptr = value; }
+            template <typename T> void putBigEndian (T value) { qToBigEndian <T> (value, pos_); } 
+            template <typename T> void putLittleEndian (T value) { qToLittleEndian <T> (value, pos_); } 
 
-                template <typename T> void push (T value) { put (value); skip <T> (); }
-                template <typename T> void pushBigEndian (T value) { putBigEndian (value); skip <T> (); }
-                template <typename T> void pushLittleEndian (T value) { putLittleEndian (value); skip <T> (); } 
+            template <typename T> void get (T& value) { T *ptr = (T *)pos_; value = *ptr; }
+            template <typename T> void getBigEndian (T& value) { value = qFromBigEndian <T> (pos_); }
+            template <typename T> void getLittleEndian (T& value) { value = qFromLittleEndian <T> (pos_); } 
 
-                template <typename T> void pop (T& value) { get (value); skip <T> (); }
-                template <typename T> void popBigEndian (T& value) { getBigEndian (value); skip <T> (); }
-                template <typename T> void popLittleEndian (T& value) { getLittleEndian (value); skip <T> (); }
+            template <typename T> void push (T value) { put (value); skip <T> (); }
+            template <typename T> void pushBigEndian (T value) { putBigEndian (value); skip <T> (); }
+            template <typename T> void pushLittleEndian (T value) { putLittleEndian (value); skip <T> (); } 
 
-                void pushHeader ();
-                void popHeader ();
+            template <typename T> void pop (T& value) { get (value); skip <T> (); }
+            template <typename T> void popBigEndian (T& value) { getBigEndian (value); skip <T> (); }
+            template <typename T> void popLittleEndian (T& value) { getLittleEndian (value); skip <T> (); }
 
-                void pushMsgID ();
-                void popMsgID ();
+            void pushHeader ();
+            void popHeader ();
 
-                void pushBlock (uint8_t repetitions);
-                void popBlock (uint8_t &repetitions);
+            void pushMsgID ();
+            void popMsgID ();
 
-                void pushVariableSize (size_t size);
-                void pushVariable (const std::vector <uint8_t> &buf);
-                void popVariable1 (std::vector <uint8_t> &buf, uint8_t &size);
-                void popVariable2 (std::vector <uint8_t> &buf, uint16_t &size);
+            void pushBlock (uint8_t repetitions);
+            void popBlock (uint8_t &repetitions);
 
-                pair <const char*, size_t> readBuffer () const;
-                pair <char*, size_t> writeBuffer () const;
+            void pushVariableSize (size_t size);
+            void pushVariable (const std::vector <uint8_t> &buf);
+            void popVariable1 (std::vector <uint8_t> &buf, uint8_t &size);
+            void popVariable2 (std::vector <uint8_t> &buf, uint16_t &size);
 
-                void clear ();
+            pair <const char*, size_t> readBuffer () const;
+            pair <char*, size_t> writeBuffer () const;
 
-                void print (std::ostream &out);
+            void clear ();
 
-            private:
-                int get_priority_ (uint32_t id);
+            void print (std::ostream &out);
 
-            private:
-                shared_ptr <ByteBuffer> data_;
+        private:
+            int get_priority_ (uint32_t id);
 
-                uint32_t    id_;
-                uint32_t    seq_;
-                uint8_t     flags_;
-                int         priority_;
-                int         age_;
+        private:
+            shared_ptr <ByteBuffer> data_;
 
-                uint8_t     *begin_;
-                uint8_t     *pos_;
-                uint8_t     *end_;
-                uint8_t     *max_;
-        };
+            uint32_t    id_;
+            uint32_t    seq_;
+            uint8_t     flags_;
+            int         priority_;
+            int         age_;
 
-        template <> void Message::push <string> (string value);
-        template <> void Message::pop <string> (string &value);
-        template <> void Message::push <QQuaternion> (QQuaternion value);
-        template <> void Message::pop <QQuaternion> (QQuaternion &value);
+            uint8_t     *begin_;
+            uint8_t     *pos_;
+            uint8_t     *end_;
+            uint8_t     *max_;
+    };
 
-        class MessageParser
-        {
-            public:
-                MessageParser (const char *filename);
+    template <> void Message::push <string> (string value);
+    template <> void Message::pop <string> (string &value);
+    template <> void Message::push <QQuaternion> (QQuaternion value);
+    template <> void Message::pop <QQuaternion> (QQuaternion &value);
 
-            public:
-                bool parse (PacketInfo &info);
+    class MessageParser
+    {
+        public:
+            MessageParser (const char *filename);
 
-            private:
-                bool parse_ (PacketInfo &info);
+        public:
+            bool parse (PacketInfo &info);
 
-            private:
-                bool            run_;
-                std::ifstream   file_;
-        };
+        private:
+            bool parse_ (PacketInfo &info);
 
-        class MessageFactory
-        {
-            public:
-                MessageFactory ();
-                ~MessageFactory ();
+        private:
+            bool            run_;
+            std::ifstream   file_;
+    };
 
-            public:
-                Message create (uint32_t id = 0, uint8_t flags = 0, size_t size = 0);
+    class MessageFactory
+    {
+        public:
+            MessageFactory ();
+            ~MessageFactory ();
 
-            private:
-                ByteBuffer *add_free_buffer_ (size_t size);
-                ByteBuffer *next_free_buffer_ ();
-                ByteBuffer *get_free_buffer_ ();
+        public:
+            Message create (uint32_t id = 0, uint8_t flags = 0, size_t size = 0);
 
-                void set_free_buffer_ (ByteBuffer *buf);
-                void set_used_buffer_ (ByteBuffer *buf);
+        private:
+            ByteBuffer *add_free_buffer_ (size_t size);
+            ByteBuffer *next_free_buffer_ ();
+            ByteBuffer *get_free_buffer_ ();
 
-            private:
-                bool        error_;
+            void set_free_buffer_ (ByteBuffer *buf);
+            void set_used_buffer_ (ByteBuffer *buf);
 
-                PacketInfo          info_;
-                MessageParser       parser_;
+        private:
+            bool        error_;
 
-                ByteBuffer::Set     used_;
-                ByteBuffer::Heap    free_;
-        };
-    }
+            PacketInfo          info_;
+            MessageParser       parser_;
+
+            ByteBuffer::Set     used_;
+            ByteBuffer::Heap    free_;
+    };
 }
 
 #endif //MESSAGE_H_

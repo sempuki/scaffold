@@ -84,9 +84,12 @@ namespace Scaffold
     {
         do_module_initialize ();
 
+        // set up shared state
         ctrl_->state = Framework::Control::RUNNING;
 
+        // set up dispatching thread
         thread_.start ();
+
         return QApplication::exec ();
     }
 

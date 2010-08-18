@@ -26,297 +26,299 @@ namespace Scaffold
         namespace XmlRpc { class Call; }
         namespace Capabilities { class Caps; }
     }
+}
 
-    namespace LLPlugin
+namespace LLPlugin
+{
+    using namespace Scaffold;
+
+    class Stream;
+    class Session;
+    class SessionProvider;
+
+    //=========================================================================
+    // LL Buddies
+
+    struct Buddy
     {
-        class Stream;
-        class Session;
-        class SessionProvider;
+        typedef std::list <Buddy> List;
 
-        //=========================================================================
-        // LL Buddies
+        string  buddy_id;
+        int     buddy_rights_given;
+        int     buddy_rights_has;
+    };
 
-        struct Buddy
-        {
-            typedef std::list <Buddy> List;
+    //=========================================================================
+    // LL Inventory Skeleton
 
-            string  buddy_id;
-            int     buddy_rights_given;
-            int     buddy_rights_has;
-        };
+    struct FolderSkeleton
+    {
+        typedef std::list <FolderSkeleton> List;
 
-        //=========================================================================
-        // LL Inventory Skeleton
+        string  name;
+        string  folder_id;
+        string  parent_id;
+        int     type_default;
+        int     version;
+    };
 
-        struct FolderSkeleton
-        {
-            typedef std::list <FolderSkeleton> List;
+    struct InventorySkeleton
+    {
+        string owner;
+        FolderSkeleton root;
+        FolderSkeleton::List folders;
+    };
 
-            string  name;
-            string  folder_id;
-            string  parent_id;
-            int     type_default;
-            int     version;
-        };
+    //=========================================================================
+    // Parameters used in Stream
 
-        struct InventorySkeleton
-        {
-            string owner;
-            FolderSkeleton root;
-            FolderSkeleton::List folders;
-        };
+    struct StreamParameters
+    {
+        UUID    agent_id;
+        UUID    session_id;
+        UUID    region_id;
 
-        //=========================================================================
-        // Parameters used in Stream
+        uint32_t circuit_code;
+    };
 
-        struct StreamParameters
-        {
-            UUID    agent_id;
-            UUID    session_id;
-            UUID    region_id;
+    //=========================================================================
+    // Parameters used in Session
 
-            uint32_t circuit_code;
-        };
+    struct SessionParameters
+    {
+        string  message;
 
-        //=========================================================================
-        // Parameters used in Session
+        string  sim_name;
+        string  sim_ip;
+        int     sim_port;
 
-        struct SessionParameters
-        {
-            string  message;
-
-            string  sim_name;
-            string  sim_ip;
-            int     sim_port;
-
-            QUrl seed_capabilities;
-            QMap <QString, QUrl> capabilities;
-        };
+        QUrl seed_capabilities;
+        QMap <QString, QUrl> capabilities;
+    };
 
 
-        //=========================================================================
-        // Parameters used by LLAgent
+    //=========================================================================
+    // Parameters used by LLAgent
 
-        struct AgentParameters
-        {
-            string  first_name;
-            string  last_name;
+    struct AgentParameters
+    {
+        string  first_name;
+        string  last_name;
 
-            Buddy::List buddies;
-            InventorySkeleton inventory;
+        Buddy::List buddies;
+        InventorySkeleton inventory;
 
-            string  home;
-            string  look_at;
-            string  start_location;
-            int     region_x;
-            int     region_y;
-        };
+        string  home;
+        string  look_at;
+        string  start_location;
+        int     region_x;
+        int     region_y;
+    };
 
-        //=========================================================================
-        // Parameters used by LLLogin
+    //=========================================================================
+    // Parameters used by LLLogin
 
-        struct LoginParameters
-        {
-            string  first;
-            string  last;
-            string  pass;
-            QUrl    service;
-        };
+    struct LoginParameters
+    {
+        string  first;
+        string  last;
+        string  pass;
+        QUrl    service;
+    };
 
-        //=========================================================================
-        // Login object for Session
+    //=========================================================================
+    // Login object for Session
 
-        class Login : public QObject
-        {
-            Q_OBJECT
+    class Login : public QObject
+    {
+        Q_OBJECT
 
-            public:
-                Login (Session *session);
-                bool operator() (const LoginParameters &params);
+        public:
+            Login (Session *session);
+            bool operator() (const LoginParameters &params);
 
             public slots:
                 void on_login_result ();
-                void on_caps_result ();
+            void on_caps_result ();
 
-            private:
-                Session *session_;
+        private:
+            Session *session_;
 
-                Connectivity::XmlRpc::Call          *login_;
-                Connectivity::Capabilities::Caps    *caps_;
-                QNetworkAccessManager               *http_;
-        };
+            Connectivity::XmlRpc::Call          *login_;
+            Connectivity::Capabilities::Caps    *caps_;
+            QNetworkAccessManager               *http_;
+    };
 
-        //=========================================================================
-        // Login object for Session
+    //=========================================================================
+    // Login object for Session
 
-        class Logout
-        {
-            public:
-                Logout (Session *sesson);
-                bool operator() ();
+    class Logout
+    {
+        public:
+            Logout (Session *sesson);
+            bool operator() ();
 
-            private:
-                Session *session_;
-        };
+        private:
+            Session *session_;
+    };
 
-        //=========================================================================
-        // Stream
+    //=========================================================================
+    // Stream
 
-        class Stream : public QObject, public Connectivity::Stream
-        { 
-            Q_OBJECT
+    class Stream : public QObject, public Connectivity::Stream
+    { 
+        Q_OBJECT
 
-            public:
-                Stream ();
-                ~Stream ();
+        public:
+            Stream ();
+            ~Stream ();
 
-                void setSessionParameters (const SessionParameters &params);
-                void setStreamParameters (const StreamParameters &params);
+            void setSessionParameters (const SessionParameters &params);
+            void setStreamParameters (const StreamParameters &params);
 
-                bool isConnected () const;
+            bool isConnected () const;
 
-                bool connect ();
-                bool disconnect ();
+            bool connect ();
+            bool disconnect ();
 
-                bool hasMessages ();
-                bool waitForConnect ();
-                bool waitForDisconnect ();
-                bool waitForWrite ();
-                bool waitForRead ();
+            bool hasMessages ();
+            bool waitForConnect ();
+            bool waitForDisconnect ();
+            bool waitForWrite ();
+            bool waitForRead ();
 
-                void listen (msg_id_t id, Message::Listener listen);
+            void listen (msg_id_t id, Message::Listener listen);
 
-            public:
-                void sendAckPacket ();
-                void sendUseCircuitCodePacket ();
-                void sendCompleteAgentMovementPacket ();
-                void sendAgentThrottlePacket ();
-                void sendAgentWearablesRequestPacket ();
-                void sendRexStartupPacket (const string &state); 
-                void sendGenericMessage (const string &method, const Message::GenericParams &parms);
-                void sendLogoutRequest ();
+        public:
+            void sendAckPacket ();
+            void sendUseCircuitCodePacket ();
+            void sendCompleteAgentMovementPacket ();
+            void sendAgentThrottlePacket ();
+            void sendAgentWearablesRequestPacket ();
+            void sendRexStartupPacket (const string &state); 
+            void sendGenericMessage (const string &method, const Message::GenericParams &parms);
+            void sendLogoutRequest ();
 
             protected slots:
                 void on_host_found ();
-                void on_connected ();
-                void on_disconnected ();
-                void on_ready_read ();
-                void on_bytes_written (qint64 bytes);
-                void on_state_changed (QAbstractSocket::SocketState state);
-                void on_error (QAbstractSocket::SocketError);
-                void on_timeout ();
+            void on_connected ();
+            void on_disconnected ();
+            void on_ready_read ();
+            void on_bytes_written (qint64 bytes);
+            void on_state_changed (QAbstractSocket::SocketState state);
+            void on_error (QAbstractSocket::SocketError);
+            void on_timeout ();
 
-            private:
-                void prepare_message_ (Message &m);
+        private:
+            void prepare_message_ (Message &m);
 
-                bool send_message_ (Message &m);
-                bool send_handle_acking_ (Message &m);
-                bool send_handle_coding_ (Message &m);
+            bool send_message_ (Message &m);
+            bool send_handle_acking_ (Message &m);
+            bool send_handle_coding_ (Message &m);
 
-                bool recv_message_ (Message &m);
-                bool recv_handle_duplicate_ (Message &m);
-                bool recv_handle_acking_ (Message &m);
-                bool recv_handle_coding_ (Message &m);
+            bool recv_message_ (Message &m);
+            bool recv_handle_duplicate_ (Message &m);
+            bool recv_handle_acking_ (Message &m);
+            bool recv_handle_coding_ (Message &m);
 
-                void resend_enqueue_ (Message &m);
-                void resend_dequeue_ (uint32_t seq);
-                void resend_process_ (int msec);
+            void resend_enqueue_ (Message &m);
+            void resend_dequeue_ (uint32_t seq);
+            void resend_process_ (int msec);
 
-                void ack_enqueue_ (uint32_t seq);
-                void ack_dequeue_ (uint32_t seq);
-                void ack_append_ (Message &m);
-                void ack_process_ (int msec);
+            void ack_enqueue_ (uint32_t seq);
+            void ack_dequeue_ (uint32_t seq);
+            void ack_append_ (Message &m);
+            void ack_process_ (int msec);
 
-            private:
-                bool    connected_;
+        private:
+            bool    connected_;
 
-                MessageFactory          factory_;
-                QUdpSocket              udp_;
-                QTimer                  timer_;
+            MessageFactory          factory_;
+            QUdpSocket              udp_;
+            QTimer                  timer_;
 
-                Message::NameMap        names_;
-                Message::IDMap          idmap_;
-                Message::SequenceSet    acks_;
-                Message::SequenceSet    received_;
-                Message::Map            resend_;
+            Message::NameMap        names_;
+            Message::IDMap          idmap_;
+            Message::SequenceSet    acks_;
+            Message::SequenceSet    received_;
+            Message::Map            resend_;
 
-                Message::SubscriptionMap    subscribers_;
+            Message::SubscriptionMap    subscribers_;
 
-                StreamParameters        streamparam_;
-                SessionParameters       sessionparam_;
-                
-                uint32_t    send_sequence_;
-                int         ack_age_;
-        };
-        
-        //=========================================================================
-        // Session 
-        
-        class Session : public Connectivity::Session
-        {
-            public:
-                Session ();
-                ~Session ();
+            StreamParameters        streamparam_;
+            SessionParameters       sessionparam_;
 
-                void setLoginParameters (const Connectivity::LoginParameters &params);
+            uint32_t    send_sequence_;
+            int         ack_age_;
+    };
 
-                AgentParameters   getAgentParameters () const;
-                SessionParameters getSessionParameters () const;
-                StreamParameters  getStreamParameters () const;
+    //=========================================================================
+    // Session 
 
-                bool isConnected() const;
-                Stream *stream ();
+    class Session : public Connectivity::Session
+    {
+        public:
+            Session ();
+            ~Session ();
 
-                bool connect ();
-                bool disconnect ();
+            void setLoginParameters (const Connectivity::LoginParameters &params);
 
-            private:
-                bool    connected_;
+            AgentParameters   getAgentParameters () const;
+            SessionParameters getSessionParameters () const;
+            StreamParameters  getStreamParameters () const;
 
-                Stream  stream_;
-                Login   login_;
-                Logout  logout_;
+            bool isConnected() const;
+            Stream *stream ();
 
-                LoginParameters     loginparam_;
-                AgentParameters     agentparam_;
-                SessionParameters   sessionparam_;
-                StreamParameters    streamparam_;
+            bool connect ();
+            bool disconnect ();
 
-                friend class Login;
-                friend class Logout;
-                friend class SessionProvider;
-        };
+        private:
+            bool    connected_;
 
-        //=========================================================================
-        // Parameters used by SessionProvider
+            Stream  stream_;
+            Login   login_;
+            Logout  logout_;
 
-        class SessionProvider : public QObject, public Connectivity::SessionProvider
-        {
-            public:
-                SessionProvider ();
-                ~SessionProvider ();
+            LoginParameters     loginparam_;
+            AgentParameters     agentparam_;
+            SessionParameters   sessionparam_;
+            StreamParameters    streamparam_;
 
-                bool accepts (RequestType request) const;
-                ResponseType retire (RequestType request);
+            friend class Login;
+            friend class Logout;
+            friend class SessionProvider;
+    };
 
-                void initialize ();
-                void finalize ();
-                void update ();
+    //=========================================================================
+    // Parameters used by SessionProvider
 
-                Connectivity::Session *session();
+    class SessionProvider : public QObject, public Connectivity::SessionProvider
+    {
+        public:
+            SessionProvider ();
+            ~SessionProvider ();
 
-            protected:
-                void timerEvent (QTimerEvent *e);
+            bool accepts (RequestType request) const;
+            ResponseType retire (RequestType request);
 
-            private:
-                Connectivity::Session *establish_session_blocking_ ();
+            void initialize ();
+            void finalize ();
+            void update ();
 
-            private:
-                Session session_;
+            Connectivity::Session *session();
 
-                Connectivity::LoginParameters   request_;
-                bool    timeout_;
-        };
-    }
+        protected:
+            void timerEvent (QTimerEvent *e);
+
+        private:
+            Connectivity::Session *establish_session_blocking_ ();
+
+        private:
+            Session session_;
+
+            Connectivity::LoginParameters   request_;
+            bool    timeout_;
+    };
 }
 #endif

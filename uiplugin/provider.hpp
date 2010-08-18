@@ -10,79 +10,79 @@
 #include "service.hpp"
 #include "userview.hpp"
 
-namespace Scaffold
+namespace UIPlugin
 {
-    namespace UIPlugin
+    using namespace Scaffold;
+
+    //=========================================================================
+
+    class NotificationProvider : public QObject, public View::NotificationProvider
     {
-        //=========================================================================
+        public:
+            NotificationProvider ();
+            ~NotificationProvider ();
 
-        class NotificationProvider : public QObject, public View::NotificationProvider
-        {
-            public:
-                NotificationProvider ();
-                ~NotificationProvider ();
+            bool accepts (RequestType request) const;
+            ResponseType retire (RequestType request);
 
-                bool accepts (RequestType request) const;
-                ResponseType retire (RequestType request);
+            void initialize ();
+            void finalize ();
+            void update ();
 
-                void initialize ();
-                void finalize ();
-                void update ();
+        private:
+            void dispatch_notice_ (const View::Notification &note);
 
-            private:
-                void dispatch_notice_ (const View::Notification &note);
+        private:
+            View::Notification::List  notices_;
+    };
 
-            private:
-                View::Notification::List  notices_;
-        };
-        
-        //=========================================================================
+    //=========================================================================
 
-        class ActionProvider : public QObject, public View::ActionProvider
-        {
-            public:
-                ActionProvider ();
-                ~ActionProvider ();
+    class ActionProvider : public QObject, public View::ActionProvider
+    {
+        public:
+            ActionProvider ();
+            ~ActionProvider ();
 
-                bool accepts (RequestType request) const;
-                ResponseType retire (RequestType request);
+            bool accepts (RequestType request) const;
+            ResponseType retire (RequestType request);
 
-                void initialize ();
-                void finalize ();
-                void update ();
-        };
+            void initialize ();
+            void finalize ();
+            void update ();
+    };
 
-        //=========================================================================
+    //=========================================================================
 
-        class KeyBindingProvider : public QObject, public View::KeyBindingProvider
-        {
-            public:
-                KeyBindingProvider ();
-                ~KeyBindingProvider ();
+    class KeyBindingProvider : public QObject, public View::KeyBindingProvider
+    {
+        public:
+            KeyBindingProvider ();
+            ~KeyBindingProvider ();
 
-                bool accepts (RequestType request) const;
-                ResponseType retire (RequestType request);
+            bool accepts (RequestType request) const;
+            ResponseType retire (RequestType request);
 
-                void initialize ();
-                void finalize ();
-                void update ();
-        };
+            void initialize ();
+            void finalize ();
+            void update ();
+    };
 
-        //=========================================================================
+    //=========================================================================
 
-        class SettingsProvider : public QObject, public View::SettingsProvider
-        {
-            public:
-                SettingsProvider ();
-                ~SettingsProvider ();
+    class SettingsProvider : public QObject, public View::SettingsProvider
+    {
+        public:
+            SettingsProvider ();
+            ~SettingsProvider ();
 
-                bool accepts (RequestType request) const;
-                ResponseType retire (RequestType request);
+            bool accepts (RequestType request) const;
+            ResponseType retire (RequestType request);
 
-                void initialize ();
-                void finalize ();
-                void update ();
-        };
-    }
+            void initialize ();
+            void finalize ();
+            void update ();
+    };
 }
+
 #endif

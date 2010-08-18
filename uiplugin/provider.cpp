@@ -3,167 +3,157 @@
  *			Ryan McDougall
  */
 
-#include <QDialog>
-#include <QLayout>
-#include <QLabel>
-
 #include "stdheaders.hpp"
 #include "uiplugin/provider.hpp"
 
 //=============================================================================
 //
-namespace Scaffold
+namespace UIPlugin
 {
-    namespace UIPlugin
+    //=========================================================================
+
+    NotificationProvider::NotificationProvider () :
+        View::NotificationProvider ("qt-notification-provider", 10)
     {
-        //=========================================================================
+    }
 
-        NotificationProvider::NotificationProvider () :
-            View::NotificationProvider ("qt-notification-provider", 10),
-            parent_ (0)
+    NotificationProvider::~NotificationProvider ()
+    {
+    }
+
+    bool NotificationProvider::accepts (RequestType request) const
+    {
+        return true;
+    }
+
+    NotificationProvider::ResponseType NotificationProvider::retire (RequestType request)
+    {
+        notices_.push_back (request);
+    }
+
+    void NotificationProvider::initialize ()
+    {
+    }
+
+    void NotificationProvider::finalize ()
+    {
+    }
+
+    void NotificationProvider::update ()
+    {
+        for_each (notices_.begin(), notices_.end(),
+                bind (&NotificationProvider::dispatch_notice_, this, _1));
+
+        notices_.clear ();
+    }
+
+    void NotificationProvider::dispatch_notice_ (const View::Notification &note)
+    {
+        switch (note.type ())
         {
+            case View::Notification::MESSAGE:
+            case View::Notification::PROGRESS:
+            case View::Notification::CHOICE:
+            case View::Notification::INPUT:
+                cout << "notification: " << qPrintable (note.message()) << endl;
+                break;
+
         }
+    }
 
-        NotificationProvider::~NotificationProvider ()
-        {
-        }
+    //=========================================================================
 
-        bool NotificationProvider::accepts (RequestType request) const
-        {
-            return true;
-        }
+    ActionProvider::ActionProvider () :
+        View::ActionProvider ("qt-action-provider", 10)
+    {
+    }
 
-        NotificationProvider::ResponseType NotificationProvider::retire (RequestType request)
-        {
-            notices_.push_back (request);
-        }
+    ActionProvider::~ActionProvider ()
+    {
+    }
 
-        void NotificationProvider::initialize ()
-        {
-            parent_ = new QWidget;
-        }
+    bool ActionProvider::accepts (RequestType request) const
+    {
+        return true;
+    }
 
-        void NotificationProvider::finalize ()
-        {
-            delete parent_;
-        }
+    ActionProvider::ResponseType ActionProvider::retire (RequestType request)
+    {
+    }
 
-        void NotificationProvider::update ()
-        {
-            for_each (notices_.begin(), notices_.end(),
-                    bind (&NotificationProvider::dispatch_notice_, this, _1));
+    void ActionProvider::initialize ()
+    {
+    }
 
-            notices_.clear ();
-        }
-        
-        void NotificationProvider::dispatch_notice_ (const View::Notification &note)
-        {
-            switch (note.type ())
-            {
-                case View::Notification::MESSAGE:
-                case View::Notification::PROGRESS:
-                case View::Notification::CHOICE:
-                case View::Notification::INPUT:
-                    cout << "notification: " << qPrintable (note.message()) << endl;
-                    break;
+    void ActionProvider::finalize ()
+    {
+    }
 
-            }
-        }
-        
-        //=========================================================================
+    void ActionProvider::update ()
+    {
+    }
 
-        ActionProvider::ActionProvider () :
-            View::ActionProvider ("qt-action-provider", 10)
-        {
-        }
+    //=========================================================================
 
-        ActionProvider::~ActionProvider ()
-        {
-        }
+    KeyBindingProvider::KeyBindingProvider () :
+        View::KeyBindingProvider ("qt-keybinding-provider", 10)
+    {
+    }
 
-        bool ActionProvider::accepts (RequestType request) const
-        {
-            return true;
-        }
+    KeyBindingProvider::~KeyBindingProvider ()
+    {
+    }
 
-        ActionProvider::ResponseType ActionProvider::retire (RequestType request)
-        {
-        }
+    bool KeyBindingProvider::accepts (RequestType request) const
+    {
+        return true;
+    }
 
-        void ActionProvider::initialize ()
-        {
-        }
+    KeyBindingProvider::ResponseType KeyBindingProvider::retire (RequestType request)
+    {
+    }
 
-        void ActionProvider::finalize ()
-        {
-        }
+    void KeyBindingProvider::initialize ()
+    {
+    }
 
-        void ActionProvider::update ()
-        {
-        }
+    void KeyBindingProvider::finalize ()
+    {
+    }
 
-        //=========================================================================
+    void KeyBindingProvider::update ()
+    {
+    }
 
-        KeyBindingProvider::KeyBindingProvider () :
-            View::KeyBindingProvider ("qt-keybinding-provider", 10)
-        {
-        }
+    //=========================================================================
 
-        KeyBindingProvider::~KeyBindingProvider ()
-        {
-        }
+    SettingsProvider::SettingsProvider () :
+        View::SettingsProvider ("qt-settings-provider", 10)
+    {
+    }
 
-        bool KeyBindingProvider::accepts (RequestType request) const
-        {
-            return true;
-        }
+    SettingsProvider::~SettingsProvider ()
+    {
+    }
 
-        KeyBindingProvider::ResponseType KeyBindingProvider::retire (RequestType request)
-        {
-        }
+    bool SettingsProvider::accepts (RequestType request) const
+    {
+        return true;
+    }
 
-        void KeyBindingProvider::initialize ()
-        {
-        }
+    SettingsProvider::ResponseType SettingsProvider::retire (RequestType request)
+    {
+    }
 
-        void KeyBindingProvider::finalize ()
-        {
-        }
+    void SettingsProvider::initialize ()
+    {
+    }
 
-        void KeyBindingProvider::update ()
-        {
-        }
+    void SettingsProvider::finalize ()
+    {
+    }
 
-        //=========================================================================
-
-        SettingsProvider::SettingsProvider () :
-            View::SettingsProvider ("qt-settings-provider", 10)
-        {
-        }
-        
-        SettingsProvider::~SettingsProvider ()
-        {
-        }
-
-        bool SettingsProvider::accepts (RequestType request) const
-        {
-            return true;
-        }
-
-        SettingsProvider::ResponseType SettingsProvider::retire (RequestType request)
-        {
-        }
-
-        void SettingsProvider::initialize ()
-        {
-        }
-
-        void SettingsProvider::finalize ()
-        {
-        }
-
-        void SettingsProvider::update ()
-        {
-        }
+    void SettingsProvider::update ()
+    {
     }
 }
