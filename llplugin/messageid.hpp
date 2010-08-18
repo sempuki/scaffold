@@ -3,7 +3,7 @@
 
 namespace Scaffold
 {
-    namespace LLStack
+    namespace LLPlugin
     {
         const uint32_t StartPingCheck                           = 0x1;
         const uint32_t CompletePingCheck                        = 0x2;

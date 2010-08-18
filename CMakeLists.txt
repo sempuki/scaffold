@@ -17,7 +17,7 @@ include_directories (.)
 qt4_generate_moc (xmlrpc.hpp moc_xmlrpc.cpp)
 qt4_generate_moc (capabilities.hpp moc_capabilities.cpp)
 qt4_generate_moc (application.hpp moc_application.cpp)
-qt4_generate_moc (llstack/provider.hpp llstack/moc_provider.cpp)
+qt4_generate_moc (llplugin/provider.hpp llplugin/moc_provider.cpp)
 
 add_executable (test 
     tag.cpp 
@@ -25,12 +25,14 @@ add_executable (test
     capabilities.cpp 
     application.cpp
     task.cpp
-    llstack/uuid.cpp
-    llstack/message.cpp
-    llstack/messageid.cpp
-    llstack/provider.cpp 
-    llstack/moc_provider.cpp
-    llstack/datacoding.cpp
+    userview.cpp
+    llplugin/uuid.cpp
+    llplugin/message.cpp
+    llplugin/messageid.cpp
+    llplugin/provider.cpp 
+    llplugin/moc_provider.cpp
+    llplugin/datacoding.cpp
+    uiplugin/provider.cpp
     moc_xmlrpc.cpp
     moc_capabilities.cpp
     moc_application.cpp

@@ -7,17 +7,20 @@
 #define SERVICE_H_
 
 #include <QFuture>
+#include <QtConcurrentRun>
 
 namespace Scaffold
 {
     namespace Service
     {
+        // Generic Interface for service providers
+
         template <typename Request, typename Response>
         class Provider : public Tagged, public Framework::Plugin
         {
             public:
                 typedef std::vector <Provider <Request,Response> *> List;
-                typedef QFuture <Response> ResponseType;
+                typedef Response ResponseType;
                 typedef typename rvalue <Request>::type RequestType;
 
                 Provider (const Tag &t, int priority = 0)
@@ -36,12 +39,14 @@ namespace Scaffold
                 int priority_;
         };
 
+        // Manager for multiple providers for a single service
+
         template <typename Request, typename Response>
         class Manager : public Framework::Worker
         {
             public:
                 typedef Provider <Request, Response> ProviderType;
-                typedef QFuture <Response> ResponseType;
+                typedef Response ResponseType;
                 typedef typename rvalue <Request>::type RequestType;
                 typedef std::vector <Manager <Request,Response> > List;
 

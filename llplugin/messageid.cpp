@@ -5,15 +5,14 @@
 
 #include "stdheaders.hpp"
 #include "subscription.hpp"
-#include "llstack/message.hpp"
-#include "llstack/messageid.hpp"
-
+#include "llplugin/message.hpp"
+#include "llplugin/messageid.hpp"
 
 //=============================================================================
 
 namespace Scaffold
 {
-    namespace LLStack 
+    namespace LLPlugin 
     {
         std::map <string, uint32_t> get_msg_id_map ()
         {

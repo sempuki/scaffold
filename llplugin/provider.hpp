@@ -2,17 +2,17 @@
  *
  */
 
-#ifndef PROVIDER_H_
-#define PROVIDER_H_
+#ifndef LL_PROVIDER_H_
+#define LL_PROVIDER_H_
 
 #include "stdheaders.hpp"
 #include "application.hpp"
 #include "service.hpp"
 #include "session.hpp"
 
-#include "llstack/uuid.hpp"
-#include "llstack/message.hpp"
-#include "llstack/messageid.hpp"
+#include "llplugin/uuid.hpp"
+#include "llplugin/message.hpp"
+#include "llplugin/messageid.hpp"
 
 #include <QUrl>
 #include <QUdpSocket>
@@ -27,7 +27,7 @@ namespace Scaffold
         namespace Capabilities { class Caps; }
     }
 
-    namespace LLStack
+    namespace LLPlugin
     {
         class Stream;
         class Session;
@@ -312,10 +312,10 @@ namespace Scaffold
                 Connectivity::Session *establish_session_blocking_ ();
 
             private:
-                bool    timeout_;
-
                 Session session_;
+
                 Connectivity::LoginParameters   request_;
+                bool    timeout_;
         };
     }
 }

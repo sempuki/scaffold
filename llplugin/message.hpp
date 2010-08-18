@@ -12,7 +12,7 @@
 
 namespace Scaffold
 {
-    namespace LLStack
+    namespace LLPlugin
     {
         const float MAX_BPS (1000000.0f);
         const size_t MAX_MESSAGE_SIZE (2048);

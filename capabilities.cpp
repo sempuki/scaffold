@@ -2,11 +2,11 @@
  *
  */
 
-#include "capabilities.hpp"
-
 #include <QXmlStreamReader>
 #include <QNetworkRequest> 
 #include <QNetworkReply> 
+
+#include "capabilities.hpp"
 
 namespace Scaffold
 {

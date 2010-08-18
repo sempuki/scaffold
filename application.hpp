@@ -24,6 +24,7 @@ namespace Scaffold
     {
         class Module; 
 
+        // share application state through a control component
         struct Control : public Model::Component
         {
             enum 
@@ -47,12 +48,13 @@ namespace Scaffold
         };
     }
 
+    // run blocking module code one a separate thread
     class DispatchThread : public QThread
     {
         Q_OBJECT
 
         public:
-            DispatchThread();
+            DispatchThread ();
 
             void setScheduler (Framework::Scheduler *s);
             void setFrameDelta (frame_delta_t t);
@@ -67,6 +69,7 @@ namespace Scaffold
             bool            stop_;
     };
 
+    // combine main-loop, modules, workers, scheduler, and control component
     class Application : public QApplication
     {
         Q_OBJECT

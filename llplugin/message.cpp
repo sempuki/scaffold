@@ -3,10 +3,6 @@
  *			Ryan McDougall
  */
 
-#include "stdheaders.hpp"
-#include "subscription.hpp"
-#include "llstack/message.hpp"
-
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/support_istream_iterator.hpp>
 #include <boost/spirit/include/phoenix_core.hpp>
@@ -16,11 +12,15 @@
 
 #include <cstring>
 
+#include "stdheaders.hpp"
+#include "subscription.hpp"
+#include "llplugin/message.hpp"
+
 //=============================================================================
 
 namespace Scaffold
 {
-    namespace LLStack 
+    namespace LLPlugin 
     {
         //=============================================================================
         // boost.spirit based parser implementation

@@ -7,6 +7,8 @@
 
 namespace Scaffold
 {
+    //=========================================================================
+
     DispatchThread::DispatchThread() : 
         scheduler_ (0), stop_ (false) 
     {}
@@ -39,16 +41,21 @@ namespace Scaffold
         stop_ = true;
     }
     
+    //=========================================================================
+
     Application::Application (int &argc, char **argv, Framework::Control *ctrl) : 
         QApplication (argc, argv), ctrl_ (ctrl)
     {
+        // set thread's scheduler
         thread_.setScheduler (&scheduler_);
 
+        // set up main loop real-time timer
         connect (&frame_timer_, SIGNAL (timeout()), this, SLOT (update()));
         frame_timer_.setSingleShot (true);
         frame_timer_.start (0);
         time_.start ();
         
+        // set thread's real-time delta values
         ctrl_->delta.on_value_change += bind (&DispatchThread::setFrameDelta, &thread_, _1);
         ctrl_->state = Framework::Control::READY;
     }
@@ -85,11 +92,13 @@ namespace Scaffold
 
     void Application::update ()
     {
+        // get real-time delta value
         frame_delta_t delta = time_.elapsed();
 
-        ctrl_->delta = delta; // update subscribers
-        do_worker_pump ();
+        ctrl_->delta = delta;   // update subscribers
+        do_worker_pump ();      // update workers
 
+        // restart timer for as soon as possible
         frame_timer_.start (0); 
         time_.restart ();
     }

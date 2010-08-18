@@ -12,7 +12,7 @@
 
 namespace Scaffold
 {
-    namespace LLStack
+    namespace LLPlugin
     {
         class UUID
         {

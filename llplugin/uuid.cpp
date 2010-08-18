@@ -5,12 +5,12 @@
  *  @brief  LLUUID is a 16-byte identifier for resources in a virtual world.
 */
 
-#include "llstack/uuid.hpp"
-
 #include <sstream>
 #include <iomanip>
 #include <cstring>
 #include <cstdlib>
+
+#include "llplugin/uuid.hpp"
 
 using namespace std;
 
@@ -37,7 +37,7 @@ static uint8_t StringToByte(const char *str)
 /// Converts a single char to a value of 0-15. (4 bits)
 namespace Scaffold
 {
-    namespace LLStack
+    namespace LLPlugin
     {
         UUID::UUID()
         {

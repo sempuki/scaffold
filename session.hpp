@@ -43,7 +43,8 @@ namespace Scaffold
         };
 
         typedef QMap <QString, QString> LoginParameters;
-        typedef Service::Manager <LoginParameters, Session *> SessionManager;
+
+        typedef Service::Manager <LoginParameters, QFuture <Session *> > SessionManager;
         typedef SessionManager::ProviderType SessionProvider;
     }
 }

@@ -29,6 +29,7 @@
 #include <tr1/functional>
 #include <tr1/type_traits>
     
+#include <QString>
 #include <QMutex>
 
 using std::isnan;

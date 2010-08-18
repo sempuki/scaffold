@@ -6,8 +6,10 @@
 #include "stdheaders.hpp"
 #include "application.hpp"
 #include "session.hpp"
-#include "llstack/provider.hpp"
+#include "userview.hpp"
 
+#include "llplugin/provider.hpp"
+#include "uiplugin/provider.hpp"
 
 //=============================================================================
 // Framework
@@ -17,13 +19,18 @@ using namespace std::tr1;
 
 using namespace Scaffold;
 using namespace Scaffold::Model;
+using namespace Scaffold::View;
 using namespace Scaffold::Framework;
 using namespace Scaffold::Connectivity;
 
 Scene           entities;
 EntityFactory   factory;
 
-SessionManager  *service_session_manager;
+SessionManager      *service_session_manager;
+NotificationManager *service_notification_manager;
+ActionManager       *service_action_manager;
+KeyBindingManager   *service_keybinding_manager;
+SettingsManager     *service_settings_manager;
 
 //=============================================================================
 // My stuff
@@ -33,8 +40,8 @@ struct Logic : public Module
     int         state;
     Scheduler   *scheduler;
 
-    LLStack::Session    *session;
-    LLStack::Stream     *stream;
+    LLPlugin::Session    *session;
+    LLPlugin::Stream     *stream;
 
     Logic () : 
         state (1), scheduler (0), session (0), stream (0)
@@ -45,7 +52,11 @@ struct Logic : public Module
         cout << "module initialize" << endl;
 
         scheduler = s;
-        service_session_manager->attach (new LLStack::SessionProvider);
+        service_session_manager->attach (new LLPlugin::SessionProvider);
+        service_notification_manager->attach (new UIPlugin::NotificationProvider);
+        service_action_manager->attach (new UIPlugin::ActionProvider);
+        service_keybinding_manager->attach (new UIPlugin::KeyBindingProvider);
+        service_settings_manager->attach (new UIPlugin::SettingsProvider);
 
         Entity *logic = entities.get ("app-logic");
         if (logic->has ("app-control"))
@@ -144,8 +155,8 @@ struct Logic : public Module
             Session *s = login.result();
             if (s->name() == "ll-session")
             {
-                session = static_cast <LLStack::Session *> (s);
-                stream = static_cast <LLStack::Stream *> (s->stream ());
+                session = static_cast <LLPlugin::Session *> (s);
+                stream = static_cast <LLPlugin::Stream *> (s->stream ());
             }
         }
 
@@ -162,6 +173,9 @@ struct Logic : public Module
         stream->sendAgentThrottlePacket ();
         stream->sendAgentWearablesRequestPacket ();
         stream->sendRexStartupPacket ("started"); 
+
+        service_notification_manager->retire 
+            (Notification (Notification::MESSAGE, "logged in!"));
 
         state = 3;
     }
@@ -214,7 +228,16 @@ int main (int argc, char** argv)
 
     // services
     service_session_manager = new SessionManager;
+    service_notification_manager = new NotificationManager;
+    service_action_manager = new ActionManager;
+    service_keybinding_manager = new KeyBindingManager;
+    service_settings_manager = new SettingsManager;
+    
     app.attach (service_session_manager);
+    app.attach (service_notification_manager);
+    app.attach (service_action_manager);
+    app.attach (service_keybinding_manager);
+    app.attach (service_settings_manager);
 
     // modules
     app.attach (new Logic);

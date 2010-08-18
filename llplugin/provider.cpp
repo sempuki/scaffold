@@ -3,20 +3,19 @@
  *			Ryan McDougall
  */
 
-#include "stdheaders.hpp"
-#include "capabilities.hpp"
-#include "xmlrpc.hpp"
-
-#include "llstack/provider.hpp"
-#include "llstack/datacoding.hpp"
-
 #include <QObject>
 #include <QVariant>
 #include <QStringList>
 #include <QCryptographicHash>
 #include <QNetworkReply>
-#include <QtConcurrentRun>
 #include <QCoreApplication>
+
+#include "stdheaders.hpp"
+#include "capabilities.hpp"
+#include "xmlrpc.hpp"
+
+#include "llplugin/provider.hpp"
+#include "llplugin/datacoding.hpp"
 
 //=========================================================================
 // pretty printers
@@ -119,7 +118,7 @@ void variant_print (int v, const QString &p)
 //
 namespace Scaffold
 {
-    namespace LLStack
+    namespace LLPlugin
     {
         //=========================================================================
         // parsers for LLLogin
@@ -982,8 +981,7 @@ namespace Scaffold
         SessionProvider::ResponseType SessionProvider::retire (RequestType request)
         {
             request_ = request;
-
-            return QtConcurrent::run (this, &SessionProvider::establish_session_blocking_); 
+            return QtConcurrent::run (this, &SessionProvider::establish_session_blocking_);
         }
 
         void SessionProvider::initialize ()
@@ -996,6 +994,8 @@ namespace Scaffold
 
         void SessionProvider::update ()
         {
+            // connect must be run in the main thread
+
             if (request_.count ())
             {
                 session_.setLoginParameters (request_);
@@ -1017,7 +1017,7 @@ namespace Scaffold
 
         Connectivity::Session *SessionProvider::establish_session_blocking_ ()
         { 
-            // wait for connection
+            // block waiting completion
             timeout_ = false; startTimer (5000);
             while (!session_.isConnected () && !timeout_);
 
