@@ -1,4 +1,4 @@
-project (test)
+project (scaffold)
 cmake_minimum_required (VERSION 2.6)
 
 include (Sagase.cmake)
@@ -19,7 +19,7 @@ qt4_generate_moc (capabilities.hpp moc_capabilities.cpp)
 qt4_generate_moc (application.hpp moc_application.cpp)
 qt4_generate_moc (llplugin/provider.hpp llplugin/moc_provider.cpp)
 
-add_executable (test 
+add_executable (scaffold 
     tag.cpp 
     xmlrpc.cpp
     capabilities.cpp 
@@ -40,7 +40,7 @@ add_executable (test
     main.cpp)
     
 if (MSVC)
-    target_link_libraries (test ${QT_LIBRARIES})# debug ${OGRE_DEBUG_LIBRARIES})
+    target_link_libraries (scaffold ${QT_LIBRARIES})# debug ${OGRE_DEBUG_LIBRARIES})
 else ()
-    target_link_libraries (test ${QT_LIBRARIES})
+    target_link_libraries (scaffold ${QT_LIBRARIES})
 endif ()
