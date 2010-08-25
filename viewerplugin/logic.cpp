@@ -33,10 +33,11 @@ namespace ViewerPlugin
         service_keybinding_manager->attach (new UIPlugin::KeyBindingProvider);
         service_settings_manager->attach (new UIPlugin::SettingsProvider);
 
-        Model::Entity *logic = model_entities->get ("app-logic");
-        if (logic->has ("app-control"))
+        Model::Entity *app = model_entities->get ("application");
+        if (app->has ("application-state-component"))
         {
-            Framework::Control *ctrl = logic->get <Framework::Control> ("app-control");
+            Framework::AppState *ctrl = app->get
+                <Framework::AppState> ("application-state-component");
 
             ctrl->state.on_value_change += bind (&Logic::on_app_state_change, this, _1);
             ctrl->delta.on_value_change += bind (&Logic::on_frame_update, this, _1);

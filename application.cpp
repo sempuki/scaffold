@@ -43,9 +43,12 @@ namespace Scaffold
     
     //=========================================================================
 
-    Application::Application (int &argc, char **argv, Framework::Control *ctrl) : 
-        QApplication (argc, argv), ctrl_ (ctrl)
+    Application::Application (int &argc, char **argv) :
+        QApplication (argc, argv), app_ (0), world_ (0)
     {
+        // set up components for application entity
+        do_entity_initialize ();
+
         // set thread's scheduler
         thread_.setScheduler (&scheduler_);
 
@@ -54,10 +57,11 @@ namespace Scaffold
         frame_timer_.setSingleShot (true);
         frame_timer_.start (0);
         time_.start ();
-        
+
         // set thread's real-time delta values
-        ctrl_->delta.on_value_change += bind (&DispatchThread::setFrameDelta, &thread_, _1);
-        ctrl_->state = Framework::Control::READY;
+        app_->state = Framework::AppState::READY;
+        app_->delta.on_value_change += bind
+            (&DispatchThread::setFrameDelta, &thread_, _1);
     }
 
     Application::~Application ()
@@ -85,7 +89,7 @@ namespace Scaffold
         do_module_initialize ();
 
         // set up shared state
-        ctrl_->state = Framework::Control::RUNNING;
+        app_->state = Framework::AppState::RUNNING;
 
         // set up dispatching thread
         thread_.start ();
@@ -98,7 +102,7 @@ namespace Scaffold
         // get real-time delta value
         frame_delta_t delta = time_.elapsed();
 
-        ctrl_->delta = delta;   // update subscribers
+        app_->delta = delta;   // update subscribers
         do_worker_pump ();      // update workers
 
         // restart timer for as soon as possible
@@ -134,5 +138,26 @@ namespace Scaffold
     {
         for_each (modules_.begin(), modules_.end(), 
                 safe_delete <Framework::Module>);
+    }
+
+    void Application::do_entity_initialize ()
+    {
+        using namespace Model;
+        using namespace Framework;
+
+        const char *app_archetypes[] = { "application-archetype" };
+
+        model_entity_factory->attach
+            (new ComponentFactory <AppState>
+             ("application-state-component", app_archetypes, 1));
+
+        model_entity_factory->attach
+            (new ComponentFactory <WorldState>
+             ("application-worldstate-component", app_archetypes, 1));
+
+        Entity *app = model_entity_factory->create ("application", "application-archetype");
+        app_ = app->get <AppState> ("application-state-component");
+        world_ = app->get <WorldState> ("application-worldstate-component");
+        model_entities->insert (app);
     }
 }

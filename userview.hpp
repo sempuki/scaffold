@@ -9,6 +9,7 @@
 class QWidget;
 class QAction;
 class QKeySequence;
+class QGraphicsView;
 
 namespace Scaffold
 {
@@ -70,6 +71,10 @@ namespace Scaffold
         // Display custom settings widgets for user configuration
         typedef Service::Manager <QWidget *, void> SettingsManager;
         typedef SettingsManager::ProviderType SettingsProvider;
+
+        // "Low-level" direct access to the scene view
+        typedef Service::Manager <string, QGraphicsView *> ViewManager;
+        typedef ViewManager::ProviderType ViewProvider;
     }
 }
 

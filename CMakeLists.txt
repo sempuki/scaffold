@@ -2,15 +2,25 @@ project (scaffold)
 cmake_minimum_required (VERSION 2.6)
 
 include (FindQt4)
+include (FindBoost)
+
 find_package (Qt4 4.6 COMPONENTS QtCore QtGui QtNetwork REQUIRED)
+find_package (Boost 1.43)
 
 if (NOT QT4_FOUND)
     message (FATAL_ERROR "Qt4 not found")
 endif (NOT QT4_FOUND)
 
+if (NOT Boost_FOUND)
+    message (FATAL_ERROR "Boost not found, define BOOST_ROOT to you boost location")
+else()
+    message (STATUS "Found the following Boost include path:")
+    message (STATUS "    " ${Boost_INCLUDE_DIRS})
+endif (NOT Boost_FOUND)
+
 include (${QT_USE_FILE})
 
-include_directories (.)
+include_directories (${Boost_INCLUDE_DIRS} .)
 
 qt4_generate_moc (xmlrpc.hpp moc_xmlrpc.cpp)
 qt4_generate_moc (capabilities.hpp moc_capabilities.cpp)

@@ -43,8 +43,10 @@ ui_*.h
 # Python files
 *.pyc
 
-# editor temporary files
+# editor files
+tags
 *.swp
 *~
 *#
 
+scaffold

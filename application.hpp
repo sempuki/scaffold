@@ -22,10 +22,8 @@ namespace Scaffold
 {
     namespace Framework
     {
-        class Module; 
-
-        // share application state through a control component
-        struct Control : public Model::Component
+        // share application state through application entity
+        struct AppState : public Model::Component
         {
             enum 
             {
@@ -37,7 +35,7 @@ namespace Scaffold
                 ERROR
             };
 
-            Control (const Tag &id) : 
+            AppState (const Tag &id) :
                 Model::Component (id), 
                 state ("application-state", INITIAL),
                 delta ("frame-duration")
@@ -46,6 +44,29 @@ namespace Scaffold
             Model::Property <int> state;
             Model::Property <frame_delta_t> delta;
         };
+
+        // share in-world state through application entity
+        struct WorldState : public Model::Component
+        {
+            enum
+            {
+                IN,
+                OUT,
+                ETHER,
+                LOGIN,
+                LOGOUT,
+                ERROR
+            };
+
+            WorldState (const Tag &id) :
+                Model::Component (id),
+                state ("world-state", OUT)
+            {}
+
+            Model::Property <int> state;
+        };
+
+        class Module;
     }
 
     // run blocking module code one a separate thread
@@ -69,13 +90,14 @@ namespace Scaffold
             bool            stop_;
     };
 
-    // combine main-loop, modules, workers, scheduler, and control component
+    // combine main-loop, modules, workers, scheduler, and application entity
+    // application entity is named "application"
     class Application : public QApplication
     {
         Q_OBJECT
 
         public:
-            Application (int &argc, char **argv, Framework::Control *ctrl);
+            Application (int &argc, char **argv);
             ~Application ();
 
         public:
@@ -84,8 +106,8 @@ namespace Scaffold
 
             int exec ();
 
-        protected slots:
-            void update ();
+            protected slots:
+                void update ();
 
         private:
             void do_worker_pump ();
@@ -95,14 +117,16 @@ namespace Scaffold
             void do_module_finalize ();
             void do_module_delete ();
 
+            void do_entity_initialize ();
+
         private:
             Framework::Worker::List workers_;
             Framework::Module::List modules_;
 
+            Framework::AppState     *app_;
+            Framework::WorldState   *world_;
             Framework::Scheduler    scheduler_;
-            Framework::Control      *ctrl_;
-
-            DispatchThread  thread_;
+            DispatchThread          thread_;
 
             QTimer  frame_timer_;
             QTime   time_;
