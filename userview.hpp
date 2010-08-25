@@ -72,8 +72,8 @@ namespace Scaffold
         typedef Service::Manager <QWidget *, void> SettingsManager;
         typedef SettingsManager::ProviderType SettingsProvider;
 
-        // "Low-level" direct access to the scene view
-        typedef Service::Manager <string, QGraphicsView *> ViewManager;
+        // Access to named 2D UI views
+        typedef Service::Manager <string, QWidget *> ViewManager;
         typedef ViewManager::ProviderType ViewProvider;
     }
 }

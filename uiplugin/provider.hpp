@@ -10,6 +10,9 @@
 #include "service.hpp"
 #include "userview.hpp"
 
+class QMainWindow;
+class QGraphicsView;
+
 namespace UIPlugin
 {
     using namespace Scaffold;
@@ -82,6 +85,44 @@ namespace UIPlugin
             void initialize ();
             void finalize ();
             void update ();
+    };
+
+    //=========================================================================
+
+    class MainViewProvider : public QObject, public View::ViewProvider
+    {
+        public:
+            MainViewProvider ();
+            ~MainViewProvider ();
+
+            bool accepts (RequestType request) const;
+            ResponseType retire (RequestType request);
+
+            void initialize ();
+            void finalize ();
+            void update ();
+
+        private:
+            QMainWindow     *main_;
+    };
+
+    //=========================================================================
+
+    class InWorldViewProvider : public QObject, public View::ViewProvider
+    {
+        public:
+            InWorldViewProvider ();
+            ~InWorldViewProvider ();
+
+            bool accepts (RequestType request) const;
+            ResponseType retire (RequestType request);
+
+            void initialize ();
+            void finalize ();
+            void update ();
+
+        private:
+            QGraphicsView   *view_;
     };
 }
 

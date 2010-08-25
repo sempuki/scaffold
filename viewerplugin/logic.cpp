@@ -3,6 +3,8 @@
  *			Ryan McDougall
  */
 
+#include <QtGui>
+
 #include "stdheaders.hpp"
 #include "application.hpp"
 
@@ -10,8 +12,7 @@
 #include "llplugin/provider.hpp"
 #include "uiplugin/provider.hpp"
 #include "viewerplugin/logic.hpp"
-
-#include <QtGui>
+#include "viewerplugin/ui_login.hpp"
 
 //=============================================================================
 
@@ -24,15 +25,27 @@ namespace ViewerPlugin
 
     void Logic::initialize (Framework::Scheduler *s)
     {
+        scheduler = s;
+        
         cout << "module initialize" << endl;
 
-        scheduler = s;
+        // add our custom providers to the service managers
         service_session_manager->attach (new LLPlugin::SessionProvider);
         service_notification_manager->attach (new UIPlugin::NotificationProvider);
         service_action_manager->attach (new UIPlugin::ActionProvider);
         service_keybinding_manager->attach (new UIPlugin::KeyBindingProvider);
         service_settings_manager->attach (new UIPlugin::SettingsProvider);
+        service_view_manager->attach (new UIPlugin::MainViewProvider);
+        service_view_manager->attach (new UIPlugin::InWorldViewProvider);
 
+        // set up the main view with our login UI
+        QMainWindow *main = static_cast <QMainWindow *> (service_view_manager->retire ("main-view"));
+        main->setWindowTitle ("Viewer");
+        main->setGeometry (100, 100, 400, 200);
+        main->setCentralWidget (new LoginWidget);
+        main->show();
+
+        // get the application entity
         Model::Entity *app = model_entities->get ("application");
         if (app->has ("application-state-component"))
         {
@@ -69,8 +82,8 @@ namespace ViewerPlugin
                     state = 0;
 
                     cout << "attempting login" << endl;
-                    scheduler->enqueue (new Framework::Task 
-                            (bind (&Logic::do_login, this, _1)));
+                    //scheduler->enqueue (new Framework::Task 
+                    //        (bind (&Logic::do_login, this, _1)));
                 }
                 break;
 
@@ -98,10 +111,8 @@ namespace ViewerPlugin
                 {
                     state = 0;
 
-                    cout << "quitting" << endl;
-                    
-                    stream->sendLogoutRequest ();
-                    QApplication::exit ();
+                    //scheduler->enqueue (new Framework::Task 
+                    //        (bind (&Logic::do_logout, this, _1)));
                 }
                 break;
 
@@ -110,17 +121,15 @@ namespace ViewerPlugin
         }
     }
     
-    void Logic::do_login (frame_delta_t delta)
+    void Logic::do_login (frame_delta_t delta, Connectivity::LoginParameters parms)
     {
-        Connectivity::LoginParameters parms;
-
         //parms.insert ("first", "Test");
         //parms.insert ("last", "User");
         //parms.insert ("pass", "test");
-        parms.insert ("first", "d");
-        parms.insert ("last", "d");
-        parms.insert ("pass", "d");
-        parms.insert ("service", "http://localhost:8002");
+        ////parms.insert ("first", "d");
+        ////parms.insert ("last", "d");
+        ////parms.insert ("pass", "d");
+        ////parms.insert ("service", "http://localhost:8002");
         //parms.insert ("service", "http://home.hulkko.net:9007");
         //parms.insert ("service", "http://world.realxtend.org:9000");
         //parms.insert ("service", "http://world.evocativi.com:8002");
@@ -165,5 +174,13 @@ namespace ViewerPlugin
 
             state = 4;
         }
+    }
+
+    void Logic::do_logout ()
+    {
+        cout << "quitting" << endl;
+
+        stream->sendLogoutRequest ();
+        QApplication::exit ();
     }
 }

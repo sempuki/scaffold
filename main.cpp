@@ -33,9 +33,6 @@ int main (int argc, char** argv)
     model_entities = new Model::Scene;
     model_entity_factory = new Model::EntityFactory;
 
-    // application
-    Application app (argc, argv);
-
     // services
     service_session_manager = new Connectivity::SessionManager;
     service_notification_manager = new View::NotificationManager;
@@ -43,6 +40,9 @@ int main (int argc, char** argv)
     service_keybinding_manager = new View::KeyBindingManager;
     service_settings_manager = new View::SettingsManager;
     service_view_manager = new View::ViewManager;
+
+    // application
+    Application app (argc, argv);
 
     app.attach (service_session_manager);
     app.attach (service_notification_manager);

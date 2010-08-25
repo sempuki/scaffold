@@ -43,9 +43,10 @@ namespace ViewerPlugin
         void on_frame_update (frame_delta_t delta);
 
         // logic functions
-        void do_login (frame_delta_t delta);
+        void do_login (frame_delta_t delta, Connectivity::LoginParameters parms);
         void do_start_world_stream (frame_delta_t delta);
         void do_read_world_stream (frame_delta_t delta);
+        void do_logout ();
     };
 }
 

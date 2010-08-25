@@ -26,6 +26,7 @@ qt4_generate_moc (xmlrpc.hpp moc_xmlrpc.cpp)
 qt4_generate_moc (capabilities.hpp moc_capabilities.cpp)
 qt4_generate_moc (application.hpp moc_application.cpp)
 qt4_generate_moc (llplugin/provider.hpp llplugin/moc_provider.cpp)
+qt4_generate_moc (viewerplugin/ui_login.hpp viewerplugin/moc_ui_login.cpp)
 
 add_executable (scaffold 
     tag.cpp 
@@ -42,6 +43,8 @@ add_executable (scaffold
     llplugin/datacoding.cpp
     uiplugin/provider.cpp
     viewerplugin/logic.cpp
+    viewerplugin/ui_login.cpp
+    viewerplugin/moc_ui_login.cpp
     moc_xmlrpc.cpp
     moc_capabilities.cpp
     moc_application.cpp
