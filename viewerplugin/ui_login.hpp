@@ -21,15 +21,19 @@ namespace ViewerPlugin
         public:
             LoginWidget (QWidget *parent = 0);
 
+        signals:
+            void start_login (QMap<QString,QString>);
+            void exit ();
+
         public slots:
             void set_connected (bool connected);
             void set_status (const QString &status);
 
         private slots:
-            void init ();
-            void start_login ();
-            void exit ();
+            void get_login_parameters ();
 
+        private:
+            void initialize ();
             void write_config ();
             QMap <QString, QString> read_config ();
 

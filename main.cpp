@@ -16,6 +16,7 @@
 
 Scaffold::Model::Scene                  *model_entities;
 Scaffold::Model::EntityFactory          *model_entity_factory;
+
 Scaffold::Connectivity::SessionManager  *service_session_manager;
 Scaffold::View::NotificationManager     *service_notification_manager;
 Scaffold::View::ActionManager           *service_action_manager;

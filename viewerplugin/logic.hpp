@@ -6,6 +6,11 @@
 #ifndef LOGIC_H_
 #define LOGIC_H_
 
+#include <QObject>
+
+#include "application.hpp"
+#include "session.hpp"
+
 namespace Scaffold
 {
     namespace Framework
@@ -24,29 +29,42 @@ namespace ViewerPlugin
 {
     using namespace Scaffold;
 
-    struct Logic : public Framework::Module
+    class Logic : public QObject, public Framework::Module
     {
-        int state;
+        Q_OBJECT
 
-        Framework::Scheduler    *scheduler;
-        LLPlugin::Session       *session;
-        LLPlugin::Stream        *stream;
+        public:
+            Logic ();
 
-        Logic ();
+            // module functions
+            void initialize (Framework::Scheduler *s);
+            void finalize ();
 
-        // module functions
-        void initialize (Framework::Scheduler *s);
-        void finalize ();
+        public:
+            // updated from the application entity
+            void on_app_state_change (int state);
+            void on_world_state_change (int state);
 
-        // updated from the control entity
-        void on_app_state_change (int state);
-        void on_frame_update (frame_delta_t delta);
+        public slots:
+            // updated from the login UI
+            void on_login (Connectivity::LoginParameters);
+            void on_exit ();
 
-        // logic functions
-        void do_login (frame_delta_t delta, Connectivity::LoginParameters parms);
-        void do_start_world_stream (frame_delta_t delta);
-        void do_read_world_stream (frame_delta_t delta);
-        void do_logout ();
+        protected:
+            // logic functions
+            void do_login (Connectivity::LoginParameters);
+            void do_start_world_stream ();
+            void do_read_world_stream ();
+            void do_logout ();
+            void do_exit ();
+
+        private:
+            Framework::Scheduler    *scheduler;
+            LLPlugin::Session       *session;
+            LLPlugin::Stream        *stream;
+
+            Framework::AppState     *app;
+            Framework::WorldState   *world;
     };
 }
 

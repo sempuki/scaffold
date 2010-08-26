@@ -52,9 +52,10 @@ namespace Scaffold
             {
                 IN,
                 OUT,
-                ETHER,
                 LOGIN,
                 LOGOUT,
+                ETHER,
+                EXIT,
                 ERROR
             };
 

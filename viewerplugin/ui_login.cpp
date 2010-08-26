@@ -23,7 +23,7 @@ namespace ViewerPlugin
     LoginWidget::LoginWidget (QWidget *parent) :
         QWidget (parent)
     {
-        init();
+        initialize ();
     }
 
     QMap <QString, QString> LoginWidget::read_config ()
@@ -70,7 +70,7 @@ namespace ViewerPlugin
         cout << "wrote credentials to config" << endl;
     }
 
-    void LoginWidget::init ()
+    void LoginWidget::initialize ()
     {
         QMap<QString, QString> ui_values = read_config();
 
@@ -102,8 +102,8 @@ namespace ViewerPlugin
 
         QPushButton *button_login = new QPushButton("Login");
         QPushButton *button_exit = new QPushButton("Exit");
-        connect(button_login, SIGNAL(clicked()), SLOT(start_login()));
-        connect(button_exit, SIGNAL(clicked()), SLOT(exit()));
+        connect(button_login, SIGNAL(clicked()), this, SLOT(get_login_parameters()));
+        connect(button_exit, SIGNAL(clicked()), this, SIGNAL(exit()));
 
         QHBoxLayout *button_layout = new QHBoxLayout();
         button_layout->addSpacerItem(new QSpacerItem(1, 1, QSizePolicy::Expanding, QSizePolicy::Minimum));
@@ -119,7 +119,7 @@ namespace ViewerPlugin
         setLayout(main_layout);
     }
 
-    void LoginWidget::start_login ()
+    void LoginWidget::get_login_parameters ()
     {
         QStringList names = edit_name_->text().split(" ");;
         QString pwd = edit_pwd_->text();
@@ -130,6 +130,7 @@ namespace ViewerPlugin
             QMessageBox::information(this, "Missing values", "Name cannot be empty and must be like <First Last>");
             return;
         }
+
         else if (host.isEmpty())
         {
             QMessageBox::information(this, "Missing values", "Host cannot be empty");
@@ -144,16 +145,7 @@ namespace ViewerPlugin
 
         set_status("Connecting...");
 
-        std::cout << "do login here!!" << std::endl;
-        //scheduler_->enqueue (new Framework::Task
-        //    (bind (&Logic::do_login, logic_, _1, params)));
-    }
-
-    void LoginWidget::exit ()
-    {
-        std::cout << "do logout here!!" << std::endl;
-        //scheduler_->enqueue (new Framework::Task
-        //    (bind (&Logic::do_logout, logic_, _1, params)));
+        emit start_login (params);
     }
 
     void LoginWidget::set_connected (bool connected)

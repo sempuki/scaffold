@@ -19,7 +19,7 @@
 namespace ViewerPlugin
 {
     Logic::Logic () : 
-        state (1), scheduler (0), session (0), stream (0)
+        scheduler (0), session (0), stream (0), app (0), world (0)
     {
     }
 
@@ -38,22 +38,19 @@ namespace ViewerPlugin
         service_view_manager->attach (new UIPlugin::MainViewProvider);
         service_view_manager->attach (new UIPlugin::InWorldViewProvider);
 
-        // set up the main view with our login UI
-        QMainWindow *main = static_cast <QMainWindow *> (service_view_manager->retire ("main-view"));
-        main->setWindowTitle ("Viewer");
-        main->setGeometry (100, 100, 400, 200);
-        main->setCentralWidget (new LoginWidget);
-        main->show();
-
         // get the application entity
-        Model::Entity *app = model_entities->get ("application");
-        if (app->has ("application-state-component"))
-        {
-            Framework::AppState *ctrl = app->get
-                <Framework::AppState> ("application-state-component");
+        Model::Entity *app_entity = model_entities->get ("application");
 
-            ctrl->state.on_value_change += bind (&Logic::on_app_state_change, this, _1);
-            ctrl->delta.on_value_change += bind (&Logic::on_frame_update, this, _1);
+        if (app_entity->has ("application-state-component"))
+        {
+            app = app_entity->get <Framework::AppState> ("application-state-component");
+            app->state.on_value_change += bind (&Logic::on_app_state_change, this, _1);
+        }
+
+        if (app_entity->has ("application-worldstate-component"))
+        {
+            world = app_entity->get <Framework::WorldState> ("application-worldstate-component");
+            world->state.on_value_change += bind (&Logic::on_world_state_change, this, _1);
         }
     }
 
@@ -65,63 +62,92 @@ namespace ViewerPlugin
     void Logic::on_app_state_change (int state)
     {
         cout << "app state changed: " << state << endl;
-    }
-
-    void Logic::on_frame_update (frame_delta_t delta)
-    {
-        // app logic state machine
 
         switch (state)
         {
-            case 0:
-                // null state
-                break;
-
-            case 1:
+            case Framework::AppState::RUNNING:
                 {
-                    state = 0;
-
-                    cout << "attempting login" << endl;
-                    //scheduler->enqueue (new Framework::Task 
-                    //        (bind (&Logic::do_login, this, _1)));
+                    world->state = Framework::WorldState::OUT;
                 }
-                break;
-
-            case 2:
-                {
-                    state = 0;
-
-                    cout << "begin streaming world" << endl;
-                    scheduler->enqueue (new Framework::Task 
-                            (bind (&Logic::do_start_world_stream, this, _1)));
-                }
-                break;
-
-            case 3:
-                {
-                    state = 0;
-
-                    cout << "waiting for world" << endl;
-                    scheduler->enqueue (new Framework::Task 
-                            (bind (&Logic::do_read_world_stream, this, _1)));
-                }
-                break;
-                
-            case 4:
-                {
-                    state = 0;
-
-                    //scheduler->enqueue (new Framework::Task 
-                    //        (bind (&Logic::do_logout, this, _1)));
-                }
-                break;
-
-            default:
                 break;
         }
     }
+
+    void Logic::on_world_state_change (int state)
+    {
+        cout << "world state changed: " << state << endl;
+
+        switch (state)
+        { 
+            case Framework::WorldState::OUT:
+                {
+                    world->state = Framework::WorldState::LOGIN;
+                }
+                break;
+
+            case Framework::WorldState::LOGIN:
+                {
+                    cout << "logging in" << endl;
+
+                    // set up the main view with our login UI
+                    QMainWindow *main = static_cast <QMainWindow *> 
+                        (service_view_manager->retire ("main-view"));
+
+                    LoginWidget *widget = new LoginWidget;
+                    connect (widget, SIGNAL(exit()), this, SLOT(on_exit()));
+                    connect (widget, SIGNAL(start_login(QMap<QString,String>)), 
+                            this, SLOT(on_login(QMap<QString,QString>)));
+
+                    main->setWindowTitle ("Viewer");
+                    main->setGeometry (100, 100, 400, 200);
+                    main->setCentralWidget (widget);
+                    main->show();
+                }
+                break;
+
+            case Framework::WorldState::IN:
+                {
+                    cout << "streaming in-world!" << endl;
+                }
+                break;
+
+            case Framework::WorldState::LOGOUT:
+                {
+                    cout << "logging out" << endl;
+                    
+                    do_logout ();
+                }
+                break;
+
+
+            case Framework::WorldState::EXIT:
+                {
+                    cout << "exiting" << endl;
+
+                    do_exit ();
+                }
+                break;
+        }
+    }
+
+    void Logic::on_login (Connectivity::LoginParameters params)
+    {
+        Framework::Task *task;
+
+        task = new Framework::Task (bind (&Logic::do_login, this, params));
+        task->chain (new Framework::Task (bind (&Logic::do_start_world_stream, this)));
+        task->chain (new Framework::Task (bind (&Logic::do_read_world_stream, this)));
+
+        scheduler->enqueue (task);
+    }
+
+    void Logic::on_exit ()
+    {
+        world->state = Framework::WorldState::LOGOUT;
+        world->state = Framework::WorldState::EXIT;
+    }
     
-    void Logic::do_login (frame_delta_t delta, Connectivity::LoginParameters parms)
+    void Logic::do_login (Connectivity::LoginParameters parms)
     {
         //parms.insert ("first", "Test");
         //parms.insert ("last", "User");
@@ -146,13 +172,11 @@ namespace ViewerPlugin
             }
         }
 
-        if (session->isConnected() && stream->isConnected())
-            state = 2;
-        else
-            state = 4;
+        if (!session->isConnected() || !stream->isConnected())
+            world->state = Framework::WorldState::EXIT;
     }
 
-    void Logic::do_start_world_stream (frame_delta_t delta)
+    void Logic::do_start_world_stream ()
     {
         stream->sendUseCircuitCodePacket ();
         stream->sendCompleteAgentMovementPacket ();
@@ -162,25 +186,22 @@ namespace ViewerPlugin
 
         service_notification_manager->retire 
             (View::Notification (View::Notification::MESSAGE, "logged in!"));
-
-        state = 3;
     }
 
-    void Logic::do_read_world_stream (frame_delta_t delta)
+    void Logic::do_read_world_stream ()
     {
         if (stream->waitForRead ())
-        {
-            while (true); // we have no idea when to quit atm
-
-            state = 4;
-        }
+            world->state = Framework::WorldState::IN;
     }
 
     void Logic::do_logout ()
     {
-        cout << "quitting" << endl;
+        if (stream && stream->isConnected())
+            stream->sendLogoutRequest ();
+    }
 
-        stream->sendLogoutRequest ();
+    void Logic::do_exit ()
+    {
         QApplication::exit ();
     }
 }
