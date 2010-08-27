@@ -147,19 +147,10 @@ namespace ViewerPlugin
         world->state = Framework::WorldState::EXIT;
     }
     
-    void Logic::do_login (Connectivity::LoginParameters parms)
+    bool Logic::do_login (Connectivity::LoginParameters parms)
     {
-        //parms.insert ("first", "Test");
-        //parms.insert ("last", "User");
-        //parms.insert ("pass", "test");
-        ////parms.insert ("first", "d");
-        ////parms.insert ("last", "d");
-        ////parms.insert ("pass", "d");
-        ////parms.insert ("service", "http://localhost:8002");
-        //parms.insert ("service", "http://home.hulkko.net:9007");
-        //parms.insert ("service", "http://world.realxtend.org:9000");
-        //parms.insert ("service", "http://world.evocativi.com:8002");
-        
+        bool success = false;
+
         QFuture <Connectivity::Session *> login = service_session_manager->retire (parms);
 
         if (!login.isCanceled()) 
@@ -174,9 +165,13 @@ namespace ViewerPlugin
 
         if (!session->isConnected() || !stream->isConnected())
             world->state = Framework::WorldState::EXIT;
+        else
+            success = true;
+
+        return success;
     }
 
-    void Logic::do_start_world_stream ()
+    bool Logic::do_start_world_stream ()
     {
         stream->sendUseCircuitCodePacket ();
         stream->sendCompleteAgentMovementPacket ();
@@ -186,22 +181,30 @@ namespace ViewerPlugin
 
         service_notification_manager->retire 
             (View::Notification (View::Notification::MESSAGE, "logged in!"));
+
+        return true;
     }
 
-    void Logic::do_read_world_stream ()
+    bool Logic::do_read_world_stream ()
     {
         if (stream->waitForRead ())
             world->state = Framework::WorldState::IN;
+
+        return true;
     }
 
-    void Logic::do_logout ()
+    bool Logic::do_logout ()
     {
         if (stream && stream->isConnected())
             stream->sendLogoutRequest ();
+
+        return true;
     }
 
-    void Logic::do_exit ()
+    bool Logic::do_exit ()
     {
         QApplication::exit ();
+
+        return true;
     }
 }

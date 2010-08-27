@@ -47,9 +47,7 @@ namespace Scaffold
             {
                 Task *head = queue_.front();
 
-                execute_ (head, delta);
-
-                if (head->dependants.size())
+                if (execute_ (head, delta) && head->dependants.size())
                     enqueue_ (head->dependants);
 
                 dispose_ (head);
@@ -77,13 +75,13 @@ namespace Scaffold
             for (; i != e; ++i) enqueue_ (*i);
         }
 
-        void Scheduler::execute_ (Task *head, frame_delta_t delta)
+        bool Scheduler::execute_ (Task *head, frame_delta_t delta)
         {
             head->state = Task::RUNNING;
-
-            head->work (delta);
-
+            bool result = head->work (delta);
             head->state = Task::COMPLETE;
+
+            return result;
         }
 
         void Scheduler::dispose_ (Task *head) 

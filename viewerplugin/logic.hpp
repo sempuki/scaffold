@@ -52,11 +52,11 @@ namespace ViewerPlugin
 
         protected:
             // logic functions
-            void do_login (Connectivity::LoginParameters);
-            void do_start_world_stream ();
-            void do_read_world_stream ();
-            void do_logout ();
-            void do_exit ();
+            bool do_login (Connectivity::LoginParameters);
+            bool do_start_world_stream ();
+            bool do_read_world_stream ();
+            bool do_logout ();
+            bool do_exit ();
 
         private:
             Framework::Scheduler    *scheduler;

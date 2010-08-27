@@ -12,7 +12,7 @@ namespace Scaffold
     {
         struct Task
         {
-            typedef function <void(frame_delta_t)> Callable;
+            typedef function <bool(frame_delta_t)> Callable;
             typedef std::list <Task *> List;
 
             enum 
@@ -48,7 +48,7 @@ namespace Scaffold
             private:
                 void enqueue_ (Task *task);
                 void enqueue_ (const Task::List &list);
-                void execute_ (Task *head, frame_delta_t delta);
+                bool execute_ (Task *head, frame_delta_t delta);
                 void dispose_ (Task *head);
 
             private:
