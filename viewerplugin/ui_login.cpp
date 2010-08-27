@@ -145,7 +145,7 @@ namespace ViewerPlugin
 
         set_status("Connecting...");
 
-        emit start_login (params);
+        emit login (params);
     }
 
     void LoginWidget::set_connected (bool connected)

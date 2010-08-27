@@ -47,7 +47,7 @@ namespace ViewerPlugin
 
         public slots:
             // updated from the login UI
-            void on_login (Connectivity::LoginParameters);
+            void on_login (QMap<QString,QString>);
             void on_exit ();
 
         protected:

@@ -95,7 +95,7 @@ namespace ViewerPlugin
 
                     LoginWidget *widget = new LoginWidget;
                     connect (widget, SIGNAL(exit()), this, SLOT(on_exit()));
-                    connect (widget, SIGNAL(start_login(QMap<QString,String>)), 
+                    connect (widget, SIGNAL(login(QMap<QString,QString>)), 
                             this, SLOT(on_login(QMap<QString,QString>)));
 
                     main->setWindowTitle ("Viewer");

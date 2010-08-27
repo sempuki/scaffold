@@ -22,7 +22,7 @@ namespace ViewerPlugin
             LoginWidget (QWidget *parent = 0);
 
         signals:
-            void start_login (QMap<QString,QString>);
+            void login (QMap<QString,QString>);
             void exit ();
 
         public slots:
